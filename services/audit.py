@@ -5,7 +5,7 @@ from pymongo.errors import PyMongoError
 import db
 
 
-def record(event, user_id=None, case_reference=None):
+def record(event, user_id=None, case_reference=None, target_id=None, old_role=None, new_role=None):
     try:
         entry = {
             'event_type': event, 'user_id': user_id,
@@ -15,6 +15,12 @@ def record(event, user_id=None, case_reference=None):
         # Opaque case references support investigation without storing case text.
         if case_reference is not None:
             entry['case_reference'] = case_reference
-        db.get_db('MONGODB_AUDIT_DB').events.insert_one(entry)
+        if target_id is not None:
+            entry['target_id'] = target_id
+        if old_role is not None:
+            entry['old_role'] = old_role
+        if new_role is not None:
+            entry['new_role'] = new_role
+        db.get_audit_collection(write=True).insert_one(entry)
     except (PyMongoError, RuntimeError):
         current_app.logger.warning('Security event could not be recorded.')

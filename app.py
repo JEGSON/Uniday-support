@@ -15,7 +15,7 @@ from email_validator import EmailNotValidError, validate_email
 
 import db
 from services.users import validate_signup
-from services import audit, auth, enrollment, tokens, cases as case_service
+from services import audit, auth, enrollment, tokens, cases as case_service, stats, audit_viewer, admin_users as user_admin
 from services.passwords import validate_password, hash_password
 from services.decorators import role_required
 import mock_data
@@ -315,35 +315,60 @@ def create_app():
     @app.get('/admin/home')
     @role_required('admin')
     def admin_home():
-        # Aggregates only: administrators do not receive case descriptions or notes.
-        return render_template('admin/home.html', overview=mock_data.get_admin_overview(current_user))
+        try:
+            return render_template('admin/home.html', overview=stats.get_admin_overview(current_user))
+        except (PyMongoError, RuntimeError):
+            app.logger.warning('Case statistics unavailable.')
+            return 'Case statistics temporarily unavailable.', 503
 
-    @app.route('/admin/users', methods=['GET', 'POST'])
+    @app.get('/admin/users')
     @role_required('admin')
     def admin_users():
-        users = mock_data.get_admin_users(current_user)
-        notice = None
-        if request.method == 'POST':
-            # Real writes must recheck administrator permission, target and action,
-            # prevent unsafe self-deactivation and audit every privileged change.
-            from flask import abort
-            action = request.form.get('action', '')
-            target = request.form.get('target', '')
-            if target not in {user['reference'] for user in users} or action not in ('status', 'role'):
+        try:
+            return render_template('admin/users.html', users=user_admin.list_users(current_user))
+        except (PyMongoError, RuntimeError):
+            app.logger.warning('Account management unavailable.')
+            return 'Account management temporarily unavailable.', 503
+
+    def admin_change_user(target, action):
+        from flask import abort
+        value = request.form.get('status' if action == 'status' else 'role', '')
+        try:
+            try:
+                event, target_id, old_role, new_role = user_admin.change_user(current_user, target, action, value)
+            except ValueError:
+                audit.record('admin_action_denied', current_user.id)
                 abort(400)
-            if action == 'role' and request.form.get('role') not in ('student', 'staff', 'admin'):
-                abort(400)
-            notice = 'This is a preview. No account changes have been saved.'
-        return render_template('admin/users.html', users=users, notice=notice)
+            except PermissionError:
+                audit.record('admin_action_denied', current_user.id)
+                return 'This account change is not permitted.', 403
+            audit.record(event, current_user.id, target_id=target_id,
+                         old_role=old_role if new_role else None, new_role=new_role)
+            return redirect(url_for('admin_users'))
+        except (PyMongoError, RuntimeError):
+            app.logger.warning('Account management unavailable.')
+            return 'Account management temporarily unavailable.', 503
+
+    @app.post('/admin/users/<target>/status')
+    @role_required('admin')
+    def admin_user_status(target):
+        return admin_change_user(target, 'status')
+
+    @app.post('/admin/users/<target>/role')
+    @role_required('admin')
+    def admin_user_role(target):
+        return admin_change_user(target, 'role')
 
     @app.get('/admin/audit')
     @role_required('admin')
     def admin_audit():
-        events = mock_data.get_admin_events(current_user)
-        event_type = request.args.get('type', '')
-        if event_type in ('Sign-in', 'Account', 'Access'):
-            events = [event for event in events if event['type'] == event_type]
-        return render_template('admin/audit.html', events=events, selected_type=event_type)
+        try:
+            events, page, has_next = audit_viewer.get_events(current_user, request.args)
+        except (PyMongoError, RuntimeError):
+            app.logger.warning('Audit viewer unavailable.')
+            return 'Audit activity temporarily unavailable.', 503
+        return render_template('admin/audit.html', events=events, event_types=audit_viewer.EVENTS,
+                               page=page, has_next=has_next)
 
     @app.post('/logout')
     @login_required

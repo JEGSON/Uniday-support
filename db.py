@@ -18,9 +18,24 @@ def init_app(app):
         REGISTRY_URI=os.environ.get('REGISTRY_URI', local_settings.get('REGISTRY_URI')),
         CASES_URI=os.environ.get('CASES_URI', local_settings.get('CASES_URI')),
         CASES_DB=os.environ.get('CASES_DB', local_settings.get('CASES_DB')) or 'cases_db',
+        STATS_URI=os.environ.get('STATS_URI', local_settings.get('STATS_URI')),
+        MONGO_AUDIT_WRITE_URI=os.environ.get('MONGO_AUDIT_WRITE_URI', local_settings.get('MONGO_AUDIT_WRITE_URI')),
+        MONGO_AUDIT_READ_URI=os.environ.get('MONGO_AUDIT_READ_URI', local_settings.get('MONGO_AUDIT_READ_URI')),
     )
 
     uri = app.config['MONGODB_URI']
+    for config_key, extension in (('MONGO_AUDIT_WRITE_URI', 'audit_writer'), ('MONGO_AUDIT_READ_URI', 'audit_reader')):
+        if app.config[config_key]:
+            try:
+                app.extensions[extension] = MongoClient(app.config[config_key], connect=False, serverSelectionTimeoutMS=3000, tz_aware=True)
+            except (PyMongoError, ValueError):
+                app.logger.warning('Audit database configuration is invalid.')
+    if app.config['STATS_URI']:
+        try:
+            app.extensions['stats_mongodb'] = MongoClient(app.config['STATS_URI'], connect=False,
+                                                         serverSelectionTimeoutMS=3000, tz_aware=True)
+        except (PyMongoError, ValueError):
+            app.logger.warning('Statistics database configuration is invalid.')
     if app.config['CASES_URI']:
         try:
             app.extensions['cases_mongodb'] = MongoClient(app.config['CASES_URI'], connect=False,
@@ -82,3 +97,17 @@ def get_cases():
     if client is None:
         raise RuntimeError('CASES_URI is required for case storage.')
     return client.get_database(current_app.config['CASES_DB']).cases
+
+
+def get_stats_cases():
+    client = current_app.extensions.get('stats_mongodb')
+    if client is None:
+        raise RuntimeError('STATS_URI is required for case statistics.')
+    return client.get_database(current_app.config['CASES_DB']).cases
+
+
+def get_audit_collection(write=False):
+    client = current_app.extensions.get('audit_writer' if write else 'audit_reader')
+    if client is None:
+        raise RuntimeError('Audit database identity is not configured.')
+    return client.get_database(current_app.config['MONGODB_AUDIT_DB']).events

@@ -1,10 +1,8 @@
 import re
 import time
 from unittest.mock import patch
-
 import pytest
 from bson import ObjectId
-
 from app import create_app
 from services.auth import User
 
@@ -20,9 +18,7 @@ def make_client():
         client = app.test_client()
         if account:
             with client.session_transaction() as session:
-                session['_user_id'] = account.id
-                session['_fresh'] = True
-                session['last_activity'] = time.time()
+                session.update(_user_id=account.id, _fresh=True, last_activity=time.time())
         return client
     return build
 
@@ -36,29 +32,16 @@ def test_admin_pages_require_admin_role(make_client, url):
             audit.assert_called_once()
 
 
-def test_admin_pages_only_expose_example_oversight_data(make_client):
+def test_admin_page_projections_and_csrf(make_client):
     client = make_client('admin')
-    for url in ('/admin/home', '/admin/users', '/admin/audit'):
-        response = client.get(url)
-        assert response.status_code == 200
-        assert b'fictional' in response.data
-        assert b'Fictional internal note' not in response.data
-        assert b'I would like to talk through my options' not in response.data
-    filtered = client.get('/admin/audit?type=Access')
-    assert b'was denied access' in filtered.data
-    assert b'created a staff account' not in filtered.data
-
-
-def test_admin_preview_actions_are_csrf_protected_and_do_not_persist(make_client):
-    client = make_client('admin')
-    assert client.post('/admin/users', data={'action': 'status', 'target': 'USR-1001'}).status_code == 400
-    page = client.get('/admin/users').get_data(as_text=True)
-    csrf = re.search(r'name="csrf_token" value="([^"]+)"', page).group(1)
-    response = client.post('/admin/users', data={'csrf_token': csrf, 'action': 'role', 'target': 'USR-1001', 'role': 'admin'})
-    assert response.status_code == 200 and b'No account changes have been saved' in response.data
-    assert b'USR-1001' in client.get('/admin/users').data
-    assert client.post('/admin/users', data={'csrf_token': csrf, 'action': 'role', 'target': 'USR-1001', 'role': 'invalid'}).status_code == 400
-    assert client.post('/admin/users', data={'csrf_token': csrf, 'action': 'status', 'target': 'unknown'}).status_code == 400
+    with patch('services.stats.get_admin_overview', return_value={'open_requests': 1, 'awaiting_reply': 0, 'categories': []}):
+        response = client.get('/admin/home')
+        assert response.status_code == 200 and b'Fictional internal note' not in response.data
+    with patch('services.admin_users.list_users', return_value=[]):
+        assert client.get('/admin/users').status_code == 200
+    with patch('services.audit_viewer.get_events', return_value=([], 1, False)):
+        assert client.get('/admin/audit?type=unknown').status_code == 200
+    assert client.post('/admin/users/' + 'a' * 24 + '/status').status_code == 400
 
 
 def test_admin_signin_redirects_to_overview():
@@ -71,5 +54,4 @@ def test_admin_signin_redirects_to_overview():
     csrf = re.search(r'name="csrf_token"[^>]*value="([^"]+)"', page).group(1)
     with patch('services.auth.authenticate', return_value=account), patch('services.audit.record'):
         response = client.post('/signin', data={'csrf_token': csrf, 'identifier': 'admin@example.edu', 'password': 'example'})
-    assert response.status_code == 302
-    assert response.headers['Location'].endswith('/admin/home')
+    assert response.status_code == 302 and response.headers['Location'].endswith('/admin/home')

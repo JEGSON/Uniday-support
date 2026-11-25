@@ -92,7 +92,7 @@ def create_app():
                     previous = user.previous_login_at
                     session['previous_login'] = previous.strftime('%d %b %Y, %H:%M UTC') if isinstance(previous, datetime) else None
                     audit.record('login_success', user.id)
-                    return redirect(url_for({'student': 'student_home', 'staff': 'staff_home'}.get(user.role, 'account_home')))
+                    return redirect(url_for({'student': 'student_home', 'staff': 'staff_home', 'admin': 'admin_home'}.get(user.role, 'account_home')))
                 audit.record('login_failure')
             except (PyMongoError, RuntimeError):
                 app.logger.warning('Sign-in database unavailable.')
@@ -270,6 +270,39 @@ def create_app():
                 abort(400)
             notice = 'This is a preview. No changes have been saved.'
         return render_template('staff/detail.html', case=case, notice=notice)
+
+    @app.get('/admin/home')
+    @role_required('admin')
+    def admin_home():
+        # Aggregates only: administrators do not receive case descriptions or notes.
+        return render_template('admin/home.html', overview=mock_data.get_admin_overview(current_user))
+
+    @app.route('/admin/users', methods=['GET', 'POST'])
+    @role_required('admin')
+    def admin_users():
+        users = mock_data.get_admin_users(current_user)
+        notice = None
+        if request.method == 'POST':
+            # Real writes must recheck administrator permission, target and action,
+            # prevent unsafe self-deactivation and audit every privileged change.
+            from flask import abort
+            action = request.form.get('action', '')
+            target = request.form.get('target', '')
+            if target not in {user['reference'] for user in users} or action not in ('status', 'role'):
+                abort(400)
+            if action == 'role' and request.form.get('role') not in ('student', 'staff', 'admin'):
+                abort(400)
+            notice = 'This is a preview. No account changes have been saved.'
+        return render_template('admin/users.html', users=users, notice=notice)
+
+    @app.get('/admin/audit')
+    @role_required('admin')
+    def admin_audit():
+        events = mock_data.get_admin_events(current_user)
+        event_type = request.args.get('type', '')
+        if event_type in ('Sign-in', 'Account', 'Access'):
+            events = [event for event in events if event['type'] == event_type]
+        return render_template('admin/audit.html', events=events, selected_type=event_type)
 
     @app.post('/logout')
     @login_required

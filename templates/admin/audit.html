@@ -1,0 +1,7 @@
+{% extends 'admin/base.html' %}
+{% block dashboard_title %}Activity{% endblock %}
+{% block dashboard_content %}
+<section class="admin-page"><p class="eyebrow">ACCOUNTABILITY</p><h1>Activity</h1><p>A clear record helps the team understand what happened and when.</p><p class="admin-preview">Preview: these events are fictional, and are not the live audit log.</p>
+<form class="admin-filter" method="get"><label for="event-type">Show activity</label><select id="event-type" name="type"><option value="">All activity</option>{% for kind in ['Sign-in', 'Account', 'Access'] %}<option value="{{ kind }}" {% if selected_type == kind %}selected{% endif %}>{{ kind }}</option>{% endfor %}</select><button type="submit">Apply filter</button></form>
+<p role="status">{{ events|length }} example {{ 'event' if events|length == 1 else 'events' }}</p><ol class="admin-timeline">{% for event in events %}<li><p class="admin-event-time">{{ event.when }} · {{ event.type }}</p><p><strong>{{ event.actor }}</strong> {{ event.action }}.</p><p class="admin-helper">From: {{ event.source }}</p></li>{% else %}<li>No activity matches this filter.</li>{% endfor %}</ol></section>
+{% endblock %}

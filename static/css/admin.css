@@ -1,0 +1,34 @@
+/* A light editorial layout gives oversight space without exposing case content. */
+.admin-intro, .admin-page { padding-top: var(--space-10); }
+.admin-intro h1, .admin-page h1 { margin: 0 0 var(--space-4); font-size: clamp(2.5rem, 6vw, 4.2rem); }
+.admin-intro > p:not(.eyebrow), .admin-page > p:not(.eyebrow), .admin-helper { color: var(--colour-ink-muted); }
+.admin-preview { padding: var(--space-3) var(--space-4); margin: var(--space-5) 0; background: #f0eee4; border-left: 3px solid var(--colour-border); }
+.admin-layout, .admin-stack { display: grid; gap: var(--space-4); align-items: start; }
+.admin-panel { padding: var(--space-6); background: var(--colour-surface-solid); border: 1px solid var(--colour-border); border-radius: var(--radius-panel); }
+.admin-panel h2 { margin-top: 0; }
+.admin-panel a { font-weight: 700; }
+.admin-number { margin: 0; font-family: var(--font-display); font-size: 4rem; line-height: 1; }
+.admin-breakdown { margin: 0; padding: 0; list-style: none; }
+.admin-breakdown li { display: flex; justify-content: space-between; padding: var(--space-3) 0; border-bottom: 1px solid var(--colour-border); }
+.admin-helper { font-size: .9rem; }
+.admin-table-wrap { overflow-x: auto; background: var(--colour-surface-solid); border: 1px solid var(--colour-border); border-radius: var(--radius-panel); }
+.admin-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; }
+.admin-table-wrap caption { padding: var(--space-4); text-align: left; font-weight: 700; }
+.admin-table-wrap th, .admin-table-wrap td { padding: var(--space-4); border-top: 1px solid var(--colour-border); vertical-align: top; }
+.admin-table-wrap small { display: block; color: var(--colour-ink-muted); font-weight: normal; }
+.admin-actions, .admin-dialog-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.admin-actions button, .admin-dialog button, .admin-filter button { min-height: 2.75rem; padding: var(--space-2) var(--space-3); color: var(--colour-accent); background: var(--colour-surface-solid); border: 1px solid var(--colour-accent); border-radius: var(--radius-control); font-weight: 700; cursor: pointer; }
+.admin-dialog { width: min(32rem, calc(100% - 2rem)); padding: var(--space-6); color: var(--colour-ink); background: var(--colour-surface-solid); border: 1px solid var(--colour-border); border-radius: var(--radius-feature); box-shadow: var(--shadow-glass); }
+.admin-dialog::backdrop { background: rgb(16 35 30 / 55%); }
+.admin-dialog h2 { margin-top: 0; }
+.admin-dialog-actions { justify-content: end; margin-top: var(--space-5); }
+.admin-dialog label, .admin-filter label { display: block; font-weight: 700; }
+.admin-dialog select, .admin-filter select { min-height: 2.75rem; padding: var(--space-2) var(--space-3); color: var(--colour-ink); background: #fffdf8; border: 1px solid var(--colour-ink-muted); border-radius: var(--radius-control); }
+.admin-filter { display: flex; flex-wrap: wrap; align-items: end; gap: var(--space-3); }
+.admin-filter label { width: 100%; }
+.admin-timeline { list-style: none; padding: 0 0 0 var(--space-5); border-left: 2px solid var(--colour-border); }
+.admin-timeline li { padding: var(--space-4); margin-bottom: var(--space-3); background: var(--colour-surface-solid); border: 1px solid var(--colour-border); border-radius: var(--radius-panel); }
+.admin-timeline li p { margin: var(--space-1) 0; }
+.admin-event-time { color: var(--colour-ink-muted); font-size: .875rem; }
+.admin-notice { padding: var(--space-4); background: #e7eee3; border: 1px solid var(--colour-border); }
+@media (min-width: 60rem) { .admin-layout { grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); } }

@@ -63,3 +63,23 @@ def get_admin_overview(user):
     return deepcopy({'open_requests': 12, 'awaiting_reply': 3,
                      'categories': [{'label': 'Personal support', 'count': 5},
                                     {'label': 'Study support', 'count': 7}]})
+
+
+def get_admin_users(user):
+    _require_role(user, 'admin')
+    # Invented identities only; real user management needs separate authorization.
+    return deepcopy([
+        {'reference': 'USR-1001', 'name': 'Alex Example', 'role': 'student', 'active': True},
+        {'reference': 'USR-1002', 'name': 'Sam Sample', 'role': 'staff', 'active': True},
+        {'reference': 'USR-1003', 'name': 'Taylor Example', 'role': 'student', 'active': False},
+    ])
+
+
+def get_admin_events(user):
+    _require_role(user, 'admin')
+    # No case content or sensitive category is exposed in audit fixtures.
+    return deepcopy([
+        {'type': 'Sign-in', 'actor': 'Sam Sample', 'action': 'signed in', 'when': 'Today, 09:15', 'source': 'Local demo'},
+        {'type': 'Account', 'actor': 'Support administrator', 'action': 'created a staff account', 'when': 'Yesterday, 15:40', 'source': 'Local demo'},
+        {'type': 'Access', 'actor': 'An account', 'action': 'was denied access to a restricted page', 'when': 'Yesterday, 11:30', 'source': 'Local demo'},
+    ])

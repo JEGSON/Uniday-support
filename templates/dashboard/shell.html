@@ -30,6 +30,10 @@
       {% elif current_user.role == 'staff' %}
         <a href="{{ url_for('staff_home') }}" {% if request.endpoint == 'staff_home' %}aria-current="page"{% endif %}>Today</a>
         <a href="{{ url_for('staff_cases') }}" {% if request.endpoint in ['staff_cases', 'staff_case_detail'] %}aria-current="page"{% endif %}>Assigned cases</a>
+      {% elif current_user.role == 'admin' %}
+        <a href="{{ url_for('admin_home') }}" {% if request.endpoint == 'admin_home' %}aria-current="page"{% endif %}>Overview</a>
+        <a href="{{ url_for('admin_users') }}" {% if request.endpoint == 'admin_users' %}aria-current="page"{% endif %}>Users</a>
+        <a href="{{ url_for('admin_audit') }}" {% if request.endpoint == 'admin_audit' %}aria-current="page"{% endif %}>Activity</a>
       {% else %}
         <a href="{{ url_for('account_home') }}" aria-current="page">Your space</a>
         <span class="dashboard-nav-future">More pages coming soon</span>

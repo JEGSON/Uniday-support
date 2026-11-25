@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Verify your account · Unidays Support{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/verify.js') }}" defer></script>{% endblock %}
+{% block content %}
+<div class="auth-page"><section class="auth-card glass">
+  <h1>Verify your account</h1>
+  {% if message %}<div class="form-alert" role="status">{{ message }}</div>{% endif %}
+  {% if verified %}
+  <p><a class="button" href="{{ url_for('signin') }}">Continue to sign in</a></p>
+  {% else %}
+  <p>Opening the link does not activate your account. Choose your final password below, then select Verify account. Use 15 to 128 characters.</p>
+  <p id="token-status" class="field-help" role="alert" hidden>This link is missing or no longer available in this tab. Open the latest email again, or request another link below.</p>
+  <noscript><p class="field-error">JavaScript is required to use this verification link. Enable it and reopen the latest email.</p></noscript>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="token" id="verification-token" value="{{ token|default('') }}">
+    <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="15" maxlength="128" required></div>
+    <div class="field"><label for="confirm_password">Confirm password</label><input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" minlength="15" maxlength="128" required></div>
+    <button class="button button-wide" type="submit" id="verify-submit" disabled>Verify account</button>
+  </form>
+  <p><a href="{{ url_for('resend_verification') }}">Request another link</a></p>
+  {% endif %}
+</section></div>
+{% endblock %}

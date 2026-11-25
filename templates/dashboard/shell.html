@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}{% block dashboard_title %}Your space{% endblock %} · Unidays Support{% endblock %}
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+  {% block dashboard_styles %}{% endblock %}
+{% endblock %}
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+  {% block dashboard_scripts %}{% endblock %}
+{% endblock %}
+
+{% block header %}
+  <header class="dashboard-header page-width">
+    <div class="dashboard-topbar glass">
+      <a class="wordmark" href="{{ url_for('landing') }}" aria-label="Unidays Support home">
+        <span class="wordmark-symbol" aria-hidden="true">u</span><span>Unidays <span>Support</span></span>
+      </a>
+      <div class="dashboard-account">
+        <span class="dashboard-role">{{ {'student': 'Student', 'staff': 'Staff', 'admin': 'Admin'}.get(current_user.role, 'Account') }} space</span>
+        <form method="post" action="{{ url_for('logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="dashboard-signout" type="submit">Sign out</button>
+        </form>
+      </div>
+    </div>
+    <nav class="dashboard-nav" aria-label="Your workspace">
+      {% if current_user.role == 'student' %}
+        <a href="{{ url_for('student_home') }}" {% if request.endpoint == 'student_home' %}aria-current="page"{% endif %}>Your requests</a>
+        <a href="{{ url_for('student_new_request') }}" {% if request.endpoint == 'student_new_request' %}aria-current="page"{% endif %}>Ask for help</a>
+      {% elif current_user.role == 'staff' %}
+        <a href="{{ url_for('staff_home') }}" {% if request.endpoint == 'staff_home' %}aria-current="page"{% endif %}>Today</a>
+        <a href="{{ url_for('staff_cases') }}" {% if request.endpoint in ['staff_cases', 'staff_case_detail'] %}aria-current="page"{% endif %}>Assigned cases</a>
+      {% else %}
+        <a href="{{ url_for('account_home') }}" aria-current="page">Your space</a>
+        <span class="dashboard-nav-future">More pages coming soon</span>
+      {% endif %}
+      {# Links are only navigation: every role-specific route requires a server-side role check. #}
+    </nav>
+  </header>
+{% endblock %}
+
+{% block content %}
+  <div class="dashboard-main page-width">
+    <div class="dashboard-session" aria-label="Account activity">Last signed in: {{ session.get('previous_login') or 'not available for this session' }}</div>
+    <div class="dashboard-expiry" id="session-warning" role="status" hidden>Your session may end soon. Save your work and refresh this page to continue.</div>
+    {% block dashboard_content %}{% endblock %}
+  </div>
+{% endblock %}
+
+{% block footer %}
+  <footer class="dashboard-footer page-width"><span>Unidays Support</span><a href="#main-content">Back to top ↑</a></footer>
+{% endblock %}

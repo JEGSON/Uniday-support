@@ -1,0 +1,33 @@
+{% extends 'staff/base.html' %}
+{% block dashboard_title %}Case details{% endblock %}
+{% block dashboard_content %}
+<div class="staff-detail">
+  <a class="staff-back" href="{{ url_for('staff_cases') }}">← Back to assigned cases</a>
+  <p class="eyebrow">CASE {{ case.reference }}</p><div class="staff-detail-heading"><div><h1>Case details</h1><p>{{ case.student_name }} · {{ case.category_label }}</p></div><span class="staff-status">{{ case.status }}</span></div>
+  <p class="staff-preview">Preview: this is a fictional case. Actions and notes are not saved.</p>
+  {% if notice %}<div class="staff-notice" role="status">{{ notice }}</div>{% endif %}
+  <div class="staff-detail-layout">
+    <section class="staff-panel" aria-labelledby="conversation-title"><p class="eyebrow">SHARED WITH THE STUDENT</p><h2 id="conversation-title">Conversation</h2><p class="staff-helper">These updates are visible to the student.</p>
+      <ol class="staff-conversation">{% for item in case.conversation %}<li><div><strong>{{ item.by }}</strong><span>{{ item.when }}</span></div><p>{{ item.text }}</p></li>{% endfor %}</ol>
+    </section>
+    <div class="staff-detail-side">
+      <section class="staff-panel staff-private" aria-labelledby="notes-title"><p class="eyebrow">VISIBLE TO STAFF ONLY</p><h2 id="notes-title">Private notes</h2><p class="staff-helper">These notes are not shown to the student.</p><div class="staff-note">{{ case.private_notes }}</div>
+        {# Real note writes must verify the staff role and case assignment server-side. #}
+        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="note"><label for="note">Add a private note</label><textarea id="note" name="note" rows="4" maxlength="3000" required></textarea><button class="staff-secondary" type="submit">Preview note</button></form>
+      </section>
+      <section class="staff-panel" aria-labelledby="case-controls"><p class="eyebrow">NEXT STEPS</p><h2 id="case-controls">Case settings</h2>
+        {# Status and assignment updates must recheck case-level authorization server-side. #}
+        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="status"><label for="status-change">Status</label><select id="status-change" name="status">{% for status in ['New', 'In progress', 'Awaiting Student', 'Done'] %}<option {% if status == case.status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select><button class="staff-secondary" type="submit">Preview status</button></form>
+        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="assignment"><label for="assignee">Assigned to</label><select id="assignee" name="assignee"><option>You</option><option>Support team</option></select><button class="staff-secondary" type="submit">Preview assignment</button></form>
+        <button type="button" class="staff-archive" data-open-dialog="archive-dialog" hidden>Archive case</button>
+        <noscript><p class="staff-helper">Enable JavaScript to preview the archive confirmation.</p></noscript>
+      </section>
+    </div>
+  </div>
+  <dialog id="archive-dialog" class="staff-dialog" aria-labelledby="archive-title" aria-describedby="archive-explanation">
+    <h2 id="archive-title">Archive this case?</h2><p id="archive-explanation">This is a preview. Confirming will not change or save this case.</p>
+    {# Real archive operations must verify the staff role and case assignment server-side. #}
+    <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="archive"><div class="staff-dialog-actions"><button type="button" class="staff-secondary" data-close-dialog>Cancel</button><button class="button" type="submit">Confirm preview</button></div></form>
+  </dialog>
+</div>
+{% endblock %}

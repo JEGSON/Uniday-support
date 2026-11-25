@@ -9,6 +9,7 @@ deploy/certs/
 
 # Exclude local environments and generated artifacts.
 .venv/
+.venv-*/
 __pycache__/
 *.py[cod]
 .pytest_cache/

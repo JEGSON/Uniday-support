@@ -20,7 +20,9 @@
     <section class="auth-card glass" aria-labelledby="signup-title">
       <p class="eyebrow">A PLACE TO START</p>
       <h1 id="signup-title">Create your account</h1>
-      <p>A few details will help us connect you with the right support.</p>
+      <p>A few details will help us connect you with the right support. The password entered here is not saved: for your security, you will choose your final password after opening your verification link.</p>
+
+      {% if notice %}<div class="form-alert" role="status"><p>{{ notice }}</p></div>{% endif %}
 
       {% if errors %}
         <div class="form-alert" role="alert" tabindex="-1">
@@ -69,6 +71,7 @@
         <button class="button button-wide" type="submit">Create account <span aria-hidden="true">→</span></button>
       </form>
       <p class="auth-alternate">Already have an account? <a href="{{ url_for('signin') }}">Sign in</a></p>
+      <p class="auth-alternate"><a href="{{ url_for('resend_verification') }}">Request another verification link</a></p>
     </section>
   </div>
 {% endblock %}

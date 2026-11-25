@@ -1,0 +1,25 @@
+{% extends 'student/base.html' %}
+{% block dashboard_title %}Your requests{% endblock %}
+{% block dashboard_content %}
+<section class="student-intro" aria-labelledby="student-title">
+  <div><p class="eyebrow">YOUR SUPPORT SPACE</p><h1 id="student-title">We’re here with you.</h1>
+    <p>A little space to see what’s happening and take your next step when you’re ready.</p></div>
+  <a class="button student-ask" href="{{ url_for('student_new_request') }}">Ask for help <span aria-hidden="true">↗</span></a>
+</section>
+<section aria-labelledby="requests-title">
+  <div class="student-section-heading"><div><p class="eyebrow">ONE STEP AT A TIME</p><h2 id="requests-title">Your requests</h2></div><p>{{ cases|length }} example {{ 'request' if cases|length == 1 else 'requests' }}</p></div>
+  <p class="preview-note">Preview: these are example requests, not your personal records.</p>
+  <div class="student-cards">
+    {% for case in cases %}
+      <article class="request-card">
+        <div class="request-card-top"><div><p class="request-reference">{{ case.reference }} · Updated {{ case.updated }}</p><h3>{{ case.category_label }}</h3></div><span class="request-status">{{ case.status }}</span></div>
+        <p>{{ case.summary }}</p>
+        {% include 'student/_progress.html' %}
+        <a class="text-link" href="{{ url_for('student_request_detail', reference=case.reference) }}">View request <span class="sr-only">{{ case.reference }}</span> <span aria-hidden="true">→</span></a>
+      </article>
+    {% else %}
+      <div class="student-empty"><h3>Nothing here yet.</h3><p>When you ask for help, it will show up here.</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

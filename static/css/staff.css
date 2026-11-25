@@ -1,0 +1,57 @@
+/* A paper-like queue keeps sensitive information readable and easy to scan. */
+.staff-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.staff-intro { display: flex; justify-content: space-between; align-items: end; gap: var(--space-8); padding: var(--space-12) 0; }
+.staff-intro h1, .staff-list-page h1, .staff-detail h1 { margin: 0 0 var(--space-4); font-size: clamp(2.5rem, 6vw, 4.2rem); }
+.staff-intro > div:first-child { max-width: 42rem; }
+.staff-intro p:not(.eyebrow), .staff-list-page > p:not(.eyebrow), .staff-helper { color: var(--colour-ink-muted); }
+.staff-aside { display: none; color: var(--colour-ink-muted); border-left: 1px solid var(--colour-border); padding-left: var(--space-6); max-width: 12rem; }
+.staff-aside span { font-family: var(--font-display); font-size: 2rem; }
+.staff-aside p { margin: 0; }
+.staff-heading, .staff-detail-heading { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); }
+.staff-heading h2 { margin: 0; }
+.staff-heading > a { font-weight: 700; }
+.staff-preview { padding: var(--space-3) var(--space-4); margin: var(--space-5) 0; color: var(--colour-ink-muted); background: #f0eee4; border-left: 3px solid var(--colour-border); font-size: .9rem; }
+.staff-filters { display: grid; gap: var(--space-3); padding: var(--space-4); background: var(--colour-surface-solid); border: 1px solid var(--colour-border); border-radius: var(--radius-panel); }
+.staff-filters label, .staff-panel label { display: block; margin-bottom: var(--space-1); font-size: .875rem; font-weight: 700; }
+.staff-filters input, .staff-filters select, .staff-panel select, .staff-panel textarea { width: 100%; min-height: 2.75rem; padding: var(--space-2) var(--space-3); color: var(--colour-ink); background: #fffdf8; border: 1px solid var(--colour-ink-muted); border-radius: var(--radius-control); }
+.staff-panel textarea { resize: vertical; }
+.staff-filter-button, .staff-secondary, .staff-archive { min-height: 2.75rem; padding: var(--space-2) var(--space-4); color: var(--colour-accent); background: var(--colour-surface-solid); border: 1px solid var(--colour-accent); border-radius: var(--radius-control); font-weight: 700; cursor: pointer; }
+.staff-filter-button:hover, .staff-secondary:hover { background: #e7eee3; }
+.staff-count { margin: var(--space-5) 0 var(--space-3); color: var(--colour-ink-muted); font-size: .875rem; }
+.staff-queue, .staff-conversation { margin: 0; padding: 0; list-style: none; }
+.staff-queue { display: grid; gap: var(--space-3); }
+.staff-case-row { padding: var(--space-5); background: var(--colour-surface-solid); border: 1px solid var(--colour-border); border-radius: var(--radius-panel); }
+.staff-case-meta { display: flex; justify-content: space-between; gap: var(--space-3); color: var(--colour-ink-muted); font-size: .8rem; }
+.staff-reference { font-weight: 700; letter-spacing: .04em; }
+.staff-case-main { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-3); }
+.staff-case-main h3 { margin: 0 0 var(--space-2); font-size: 1.35rem; }
+.staff-case-main h3 a { color: var(--colour-ink); text-decoration: none; }
+.staff-case-main h3 a:hover { text-decoration: underline; }
+.staff-case-main p { margin: 0; color: var(--colour-ink-muted); }
+.staff-status { display: inline-block; padding: var(--space-1) var(--space-3); color: var(--colour-accent); background: #e1ece0; border: 1px solid #a5b8a3; border-radius: var(--radius-round); font-size: .8rem; font-weight: 700; }
+.staff-case-link { display: inline-flex; align-items: center; min-height: 2.75rem; margin-top: var(--space-3); font-weight: 700; }
+.staff-empty, .staff-panel { padding: var(--space-5); background: var(--colour-surface-solid); border: 1px solid var(--colour-border); border-radius: var(--radius-panel); }
+.staff-empty h3 { margin-top: 0; }
+.staff-list-page, .staff-detail { padding-top: var(--space-10); }
+.staff-back { display: inline-flex; min-height: 2.75rem; align-items: center; margin-bottom: var(--space-5); font-weight: 700; }
+.staff-detail-heading p { margin: 0; color: var(--colour-ink-muted); }
+.staff-detail-layout, .staff-detail-side { display: grid; gap: var(--space-4); align-items: start; }
+.staff-panel h2 { margin: 0 0 var(--space-3); font-size: 1.7rem; }
+.staff-helper { font-size: .9rem; }
+.staff-conversation li { padding: var(--space-4) 0; border-top: 1px solid var(--colour-border); }
+.staff-conversation li div { display: flex; justify-content: space-between; gap: var(--space-3); }
+.staff-conversation li span { color: var(--colour-ink-muted); font-size: .8rem; }
+.staff-conversation p { margin: var(--space-2) 0 0; }
+.staff-private { background: #f3f1e8; }
+.staff-note { padding: var(--space-4); margin-bottom: var(--space-5); background: #fffdf8; border-left: 3px solid #a8b7a1; }
+.staff-panel form + form { margin-top: var(--space-5); }
+.staff-panel form .staff-secondary { margin-top: var(--space-3); }
+.staff-archive { margin-top: var(--space-6); color: var(--colour-error); border-color: var(--colour-error); }
+.staff-notice { padding: var(--space-4); margin-bottom: var(--space-4); background: #e7eee3; border: 1px solid var(--colour-border); border-radius: var(--radius-panel); }
+.staff-dialog { width: min(32rem, calc(100% - 2rem)); padding: var(--space-6); color: var(--colour-ink); background: var(--colour-surface-solid); border: 1px solid var(--colour-border); border-radius: var(--radius-feature); box-shadow: var(--shadow-glass); }
+.staff-dialog::backdrop { background: rgb(16 35 30 / 55%); }
+.staff-dialog h2 { margin-top: 0; }
+.staff-dialog-actions { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-3); }
+@media (min-width: 42rem) { .staff-aside { display: block; } .staff-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; } .staff-filter-button { justify-self: start; } }
+@media (min-width: 65rem) { .staff-filters { grid-template-columns: 2fr 1fr 1fr auto; } .staff-detail-layout { grid-template-columns: minmax(0, 1.2fr) minmax(18rem, .8fr); } .staff-panel { padding: var(--space-8); } }
+@media (prefers-reduced-motion: no-preference) { .staff-case-row { transition: border-color var(--duration-control) var(--ease-gentle); } .staff-case-row:hover { border-color: var(--colour-accent); } }

@@ -1,0 +1,31 @@
+{% extends 'student/base.html' %}
+{% block dashboard_title %}Ask for help{% endblock %}
+{% block dashboard_content %}
+<div class="student-form-wrap">
+  <a class="student-back" href="{{ url_for('student_home') }}">← Back to your requests</a>
+  <p class="eyebrow">WHEN YOU’RE READY</p><h1>Let’s start with you.</h1>
+  <p>You don’t need to have everything worked out. Tell us what feels important.</p>
+  <p class="preview-note">This form is a preview. Requests cannot yet be sent or saved.</p>
+  {% if notice %}<div class="student-notice" role="status">{{ notice }}</div>{% endif %}
+  {% if errors %}<div class="student-errors" role="alert"><h2>Please check a couple of things</h2><ul>{% for field, error in errors.items() %}<li><a href="#{{ field }}">{{ error }}</a></li>{% endfor %}</ul></div>{% endif %}
+  {# Real submissions must be authorized, validated and stored by the server. #}
+  <form method="post" class="request-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <fieldset id="category" {% if errors.category %}aria-describedby="category-error"{% endif %}>
+      <legend>What would you like help with?</legend><p>Choose the one that feels closest. It’s okay if you’re not sure.</p>
+      <div class="category-grid">{% for name, description in categories %}
+        <label class="category-option"><input type="radio" name="category" value="{{ name }}" {% if request.form.get('category') == name %}checked{% endif %} required><span><strong>{{ name }}</strong><small>{{ description }}</small></span></label>
+      {% endfor %}</div>
+      {% if errors.category %}<p class="field-error" id="category-error">{{ errors.category }}</p>{% endif %}
+    </fieldset>
+    <div class="request-field"><label for="description">What’s going on?</label><p id="description-help">Share as much or as little as you feel comfortable with.</p>
+      <textarea id="description" name="description" rows="7" maxlength="3000" required aria-describedby="description-help description-count{% if errors.description %} description-error{% endif %}" {% if errors.description %}aria-invalid="true"{% endif %}>{{ request.form.get('description', '') }}</textarea>
+      <p id="description-count" class="field-help" aria-live="polite">Up to 3,000 characters.</p>
+      {% if errors.description %}<p class="field-error" id="description-error">{{ errors.description }}</p>{% endif %}
+    </div>
+    <label class="urgent-option"><input type="checkbox" name="urgent" value="yes" {% if request.form.get('urgent') == 'yes' %}checked{% endif %}><span><strong>This feels urgent</strong><small>This preview is not monitored. If you are in immediate danger, contact local emergency services.</small></span></label>
+    <p class="privacy-note">Your information matters. Share what feels relevant and check your university’s privacy information for how it is used.</p>
+    <button class="button" type="submit">Preview request <span aria-hidden="true">→</span></button>
+  </form>
+</div>
+{% endblock %}

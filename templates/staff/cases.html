@@ -1,0 +1,10 @@
+{% extends 'staff/base.html' %}
+{% block dashboard_title %}Assigned cases{% endblock %}
+{% block dashboard_content %}
+<section class="staff-list-page" aria-labelledby="cases-title"><p class="eyebrow">YOUR WORKSPACE</p><h1 id="cases-title">Assigned cases</h1><p>A place to keep track of the requests assigned to you.</p>
+  <p class="staff-preview">Preview: these are fictional cases. Assignment controls are not connected.</p>
+  {% include 'staff/_filters.html' %}
+  <p class="staff-count" role="status">{{ cases|length }} example {{ 'case' if cases|length == 1 else 'cases' }}</p>
+  {% include 'staff/_queue.html' %}
+</section>
+{% endblock %}

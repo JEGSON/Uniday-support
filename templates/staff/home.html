@@ -1,0 +1,11 @@
+{% extends 'staff/base.html' %}
+{% block dashboard_title %}Today{% endblock %}
+{% block dashboard_content %}
+<section class="staff-intro"><div><p class="eyebrow">YOUR WORKSPACE</p><h1>Let’s take today<br>one case at a time.</h1><p>A clear place to begin, with the requests that may need a little attention.</p></div><div class="staff-aside"><span aria-hidden="true">↗</span><p>Start where it matters.</p></div></section>
+<section aria-labelledby="attention-title"><div class="staff-heading"><div><p class="eyebrow">YOUR ATTENTION</p><h2 id="attention-title">What needs a look</h2></div><a href="{{ url_for('staff_cases') }}">See assigned cases →</a></div>
+  <p class="staff-preview">Preview: all names, requests and notes here are fictional. Nothing is saved.</p>
+  {% include 'staff/_filters.html' %}
+  <p class="staff-count" role="status">{{ cases|length }} example {{ 'case' if cases|length == 1 else 'cases' }}</p>
+  {% include 'staff/_queue.html' %}
+</section>
+{% endblock %}

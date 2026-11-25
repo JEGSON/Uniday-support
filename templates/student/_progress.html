@@ -1,0 +1,11 @@
+{% set steps = ['Received', "Someone’s assigned", "We’re on it", 'Waiting on you', 'Done'] %}
+<div class="request-progress progress-{{ case.progress }}">
+  <p class="sr-only">Request progress: {{ case.status }}.</p>
+  <ol aria-label="Request progress">
+    {% for step in steps %}
+      <li class="{% if loop.index0 <= case.progress %}is-reached{% endif %}" {% if loop.index0 == case.progress %}aria-current="step"{% endif %}>
+        <span class="progress-dot" aria-hidden="true"></span><span>{{ step }}</span>
+      </li>
+    {% endfor %}
+  </ol>
+</div>

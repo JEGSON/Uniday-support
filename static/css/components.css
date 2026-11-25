@@ -1,0 +1,80 @@
+/* Reusable elements keep controls and surfaces consistent across pages. */
+.glass {
+  background: var(--colour-surface-solid);
+  border: 1px solid var(--colour-border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-glass), var(--shadow-inset);
+}
+
+/* A solid surface is the default, so text remains legible without blur support. */
+@supports (backdrop-filter: blur(1px)) {
+  .glass {
+    background: var(--colour-surface-glass);
+    backdrop-filter: blur(var(--blur-glass));
+  }
+}
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--colour-accent);
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.wordmark-symbol {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  color: var(--colour-on-accent);
+  background: var(--colour-accent);
+  border-radius: 45% 45% 45% 12%;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  color: var(--colour-on-accent);
+  background: var(--colour-accent);
+  border: 1px solid var(--colour-accent);
+  border-radius: var(--radius-control);
+  font-family: var(--font-body);
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:hover { color: var(--colour-on-accent); background: var(--colour-accent-hover); }
+.button-small { padding: var(--space-2) var(--space-4); }
+.text-link { display: inline-flex; min-height: 2.75rem; align-items: center; gap: var(--space-2); font-weight: 700; }
+
+.site-header { padding: var(--space-4); }
+.site-nav {
+  display: flex;
+  max-width: var(--content-width);
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-inline: auto;
+  padding: var(--space-3) var(--space-4);
+}
+.site-nav-links { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.site-nav-links > a:not(.button) { display: inline-flex; min-height: 2.75rem; align-items: center; font-weight: 700; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .button { transition: background-color var(--duration-control) var(--ease-gentle), color var(--duration-control) var(--ease-gentle); }
+}

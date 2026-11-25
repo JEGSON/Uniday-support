@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Create an account · Unidays Support{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/auth.css') }}">{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/auth.js') }}" defer></script>{% endblock %}
+
+{% block header %}
+  <header class="auth-header page-width">
+    <a class="wordmark" href="{{ url_for('landing') }}" aria-label="Unidays Support home">
+      <span class="wordmark-symbol" aria-hidden="true">u</span><span>Unidays <span>Support</span></span>
+    </a>
+    <a class="text-link" href="{{ url_for('landing') }}">Back to home</a>
+  </header>
+{% endblock %}
+
+{% block content %}
+  {% set errors = errors|default({}) %}
+  {% set values = values|default({}) %}
+  <div class="auth-page">
+    <section class="auth-card glass" aria-labelledby="signup-title">
+      <p class="eyebrow">A PLACE TO START</p>
+      <h1 id="signup-title">Create your account</h1>
+      <p>A few details will help us connect you with the right support.</p>
+
+      {% if errors %}
+        <div class="form-alert" role="alert" tabindex="-1">
+          <h2>Please check your details</h2>
+          <ul>{% for field, message in errors.items() %}<li>{% if field in ['full_name', 'student_id', 'email', 'course', 'password', 'confirm_password'] %}<a href="#{{ field }}">{{ message }}</a>{% else %}{{ message }}{% endif %}</li>{% endfor %}</ul>
+        </div>
+      {% endif %}
+
+      {# Backend contract: validate CSRF, identity, uniqueness and every field
+         server-side; return only non-secret values and never echo passwords. #}
+      <form method="post" action="{{ url_for('signup') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field">
+          <label for="full_name">Full name</label>
+          <input id="full_name" name="full_name" autocomplete="name" value="{{ values.get('full_name', '') }}" required {% if errors.get('full_name') %}aria-invalid="true" aria-describedby="full_name-error"{% endif %}>
+          {% if errors.get('full_name') %}<p class="field-error" id="full_name-error">{{ errors['full_name'] }}</p>{% endif %}
+        </div>
+        <div class="field">
+          <label for="student_id">Student ID</label>
+          <input id="student_id" name="student_id" autocomplete="off" value="{{ values.get('student_id', '') }}" required {% if errors.get('student_id') %}aria-invalid="true" aria-describedby="student_id-error"{% endif %}>
+          {% if errors.get('student_id') %}<p class="field-error" id="student_id-error">{{ errors['student_id'] }}</p>{% endif %}
+        </div>
+        <div class="field">
+          <label for="email">University email</label>
+          <input id="email" name="email" type="email" autocomplete="email" value="{{ values.get('email', '') }}" required {% if errors.get('email') %}aria-invalid="true" aria-describedby="email-error"{% endif %}>
+          {% if errors.get('email') %}<p class="field-error" id="email-error">{{ errors['email'] }}</p>{% endif %}
+        </div>
+        <div class="field">
+          <label for="course">Course</label>
+          <input id="course" name="course" value="{{ values.get('course', '') }}" required {% if errors.get('course') %}aria-invalid="true" aria-describedby="course-error"{% endif %}>
+          {% if errors.get('course') %}<p class="field-error" id="course-error">{{ errors['course'] }}</p>{% endif %}
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="password-field"><input id="password" name="password" type="password" autocomplete="new-password" minlength="15" maxlength="128" required aria-describedby="password-help{% if errors.get('password') %} password-error{% endif %}" {% if errors.get('password') %}aria-invalid="true"{% endif %}><button class="password-toggle" type="button" data-password-toggle aria-controls="password" aria-pressed="false" hidden>Show password</button></div>
+          <p class="field-help" id="password-help">Use 15 to 128 characters. Spaces and pasted passwords are welcome.</p>
+          <p class="field-help" id="password-feedback" aria-live="polite"></p>
+          {% if errors.get('password') %}<p class="field-error" id="password-error">{{ errors['password'] }}</p>{% endif %}
+        </div>
+        <div class="field">
+          <label for="confirm_password">Confirm password</label>
+          <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" required {% if errors.get('confirm_password') %}aria-invalid="true" aria-describedby="confirm_password-error"{% endif %}>
+          {% if errors.get('confirm_password') %}<p class="field-error" id="confirm_password-error">{{ errors['confirm_password'] }}</p>{% endif %}
+        </div>
+        <p class="field-help">Your details are used to manage your account and connect you with support. Please consult your university’s privacy information for details.</p>
+        <button class="button button-wide" type="submit">Create account <span aria-hidden="true">→</span></button>
+      </form>
+      <p class="auth-alternate">Already have an account? <a href="{{ url_for('signin') }}">Sign in</a></p>
+    </section>
+  </div>
+{% endblock %}
+
+{% block footer %}<footer class="auth-footer">Unidays Support</footer>{% endblock %}

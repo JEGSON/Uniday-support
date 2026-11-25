@@ -1,0 +1,22 @@
+# Keep credentials, encryption keys and local certificates out of Git.
+.env
+.env.*
+!.env.example
+secrets/
+deploy/certs/
+*.key
+*.pem
+
+# Exclude local environments and generated artifacts.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+test-results/
+playwright-report/
+
+# Raw downloads and generated data need explicit review before inclusion.
+data/raw/
+data/processed/

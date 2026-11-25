@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+
+{% block title %}Unidays Support · Here when you need us{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/landing.js') }}" defer></script>
+{% endblock %}
+
+{% block header %}
+  <header class="site-header">
+    <nav class="site-nav glass" aria-label="Main navigation">
+      <a class="wordmark" href="{{ url_for('landing') }}" aria-label="Unidays Support home">
+        <span class="wordmark-symbol" aria-hidden="true">u</span>
+        <span>Unidays <span>Support</span></span>
+      </a>
+      <div class="site-nav-links">
+        <a href="#how-it-works">How it works</a>
+        <a href="{{ url_for('signin') }}">Sign in</a>
+        <a class="button button-small" href="{{ url_for('signup') }}">Create account</a>
+      </div>
+    </nav>
+  </header>
+{% endblock %}
+
+{% block content %}
+  {# Decorations carry no information and remain behind readable surfaces. #}
+  <div class="ambient" aria-hidden="true">
+    <span class="ambient-shape ambient-shape-one"></span>
+    <span class="ambient-shape ambient-shape-two"></span>
+    <span class="ambient-shape ambient-shape-three"></span>
+  </div>
+
+  <section class="opening page-width" aria-labelledby="opening-title">
+    <div class="opening-copy" data-reveal>
+      <p class="eyebrow">A LITTLE SUPPORT CAN GO A LONG WAY</p>
+      <h1 id="opening-title">Whatever is on your mind, we can start there.</h1>
+      <p class="opening-intro">University life can bring a lot at once. If something is making things harder, you can tell us in your own words.</p>
+      <div class="opening-actions">
+        <a class="button" href="{{ url_for('signup') }}">Create an account <span aria-hidden="true">↗</span></a>
+        <a class="text-link" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a>
+      </div>
+    </div>
+
+    <div class="support-menu glass" data-reveal>
+      <div class="support-menu-heading">
+        <p class="eyebrow">FIND YOUR STARTING POINT</p>
+        <h2>What do you need help with today?</h2>
+        <p>Choose a topic to find out a little more. It is okay if you are not sure yet.</p>
+      </div>
+      <div class="support-topics">
+        <details class="support-topic"><summary>Wellbeing</summary><p>Talk to us about how you are feeling or anything affecting your wellbeing.</p></details>
+        <details class="support-topic"><summary>Academic</summary><p>Ask about challenges with study, coursework or your university experience.</p></details>
+        <details class="support-topic"><summary>Financial</summary><p>Let us know if money worries are affecting your studies or daily life.</p></details>
+        <details class="support-topic"><summary>Disability</summary><p>Ask about support related to a disability or access needs.</p></details>
+        <details class="support-topic"><summary>Accommodation</summary><p>Tell us about concerns with your housing or living arrangements.</p></details>
+        <details class="support-topic"><summary>Something else</summary><p>If your concern does not fit a category, you can still tell us about it.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section id="how-it-works" class="journey page-width" aria-labelledby="journey-title">
+    <div class="section-intro" data-reveal>
+      <p class="eyebrow">ONE STEP AT A TIME</p>
+      <h2 id="journey-title">What happens when you reach out?</h2>
+      <p>You do not need to have everything figured out before you get in touch.</p>
+    </div>
+    <ol class="journey-steps" data-reveal>
+      <li><span class="step-number" aria-hidden="true">01</span><div><h3>Tell us what is going on</h3><p>Write a request in your own words and choose the topic that feels closest.</p></div></li>
+      <li><span class="step-number" aria-hidden="true">02</span><div><h3>We find the right person</h3><p>A member of the support team is assigned to your request.</p></div></li>
+      <li><span class="step-number" aria-hidden="true">03</span><div><h3>Keep in touch</h3><p>Sign in to see updates and reply when you are ready.</p></div></li>
+      <li><span class="step-number" aria-hidden="true">04</span><div><h3>Find a way forward</h3><p>Work with the support team towards a next step that helps.</p></div></li>
+    </ol>
+  </section>
+
+  <section class="trust page-width" aria-labelledby="trust-title" data-reveal>
+    <div class="trust-mark" aria-hidden="true"><span></span><span></span></div>
+    <div>
+      <p class="eyebrow">YOUR INFORMATION MATTERS</p>
+      <h2 id="trust-title">Who can see your request?</h2>
+      <p>Your request is intended for you and the university staff authorised to support you. Share only what you feel is relevant, and check your university’s privacy information for details of how your information is used.</p>
+    </div>
+  </section>
+
+  <section class="quiet-close page-width" aria-labelledby="close-title" data-reveal>
+    <p class="eyebrow">WHEN YOU ARE READY</p>
+    <h2 id="close-title">You do not have to work it out alone.</h2>
+    <p>Start with a few words. We will take it from there.</p>
+    <div class="opening-actions"><a class="button" href="{{ url_for('signup') }}">Create an account</a><a class="text-link" href="{{ url_for('signin') }}">Already have an account? Sign in</a></div>
+  </section>
+{% endblock %}
+
+{% block footer %}
+  <footer class="site-footer page-width"><span>Unidays Support</span><a href="#main-content">Back to top ↑</a></footer>
+{% endblock %}

@@ -1,0 +1,57 @@
+/* A quiet, warm palette. Text colours are used on solid or tinted surfaces;
+   contrast must be checked again wherever a surface is translucent. */
+:root {
+  --colour-ink: #253a34;
+  --colour-ink-muted: #425a51;
+  --colour-accent: #183f38;
+  --colour-accent-hover: #102e29;
+  --colour-on-accent: #f7f2e8;
+  --colour-background: #f7f2e8;
+  --colour-surface-solid: #faf7f0;
+  --colour-surface-glass: rgb(250 247 240 / 90%);
+  --colour-border: #b5c1b4;
+  --colour-focus: #874329;
+  --colour-error: #8d3029;
+  --colour-error-surface: #faece5;
+
+  /* Atmospheric colours are decorative, never relied on for text contrast. */
+  --colour-glow-apricot: #e9c7ad;
+  --colour-glow-sage: #c7d8c5;
+  --colour-glow-sand: #eadcb9;
+
+  /* System stacks avoid external font requests and work before assets load. */
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --font-body: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+  --font-size-body: 1rem;
+  --line-height-body: 1.65;
+  --line-height-heading: 1.12;
+
+  /* A 4px base rhythm keeps layouts consistent at different screen sizes. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-20: 5rem;
+
+  --radius-control: 0.75rem;
+  --radius-panel: 1rem;
+  --radius-feature: 1.5rem;
+  --radius-round: 999px;
+  --blur-glass: 18px;
+  --shadow-glass: 0 12px 36px rgb(37 58 52 / 10%), 0 2px 8px rgb(37 58 52 / 5%);
+  --shadow-inset: inset 0 1px 0 rgb(255 255 255 / 65%);
+  --content-width: 72rem;
+  --focus-width: 3px;
+
+  /* Motion is opt-in at the component level and must not govern behaviour. */
+  --ease-gentle: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-control: 160ms;
+  --duration-reveal: 600ms;
+  --duration-ambient: 24s;
+}

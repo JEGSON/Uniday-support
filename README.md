@@ -32,9 +32,9 @@ it does not establish ownership of a real mailbox and must not be internet-facin
 
 Student requests now save to the local `cases_db` using the separate `CASES_URI`
 identity. Student reads and replies are scoped to the signed-in owner; staff
-and admin dashboards still use fictional fixtures and **do not receive or
-monitor saved requests**. Use synthetic information only: this is not a live
-support service and is not suitable for emergencies or real sensitive records.
+can claim unassigned requests and access only their assigned cases. The admin
+dashboard still uses fictional fixtures. Use synthetic information only: this is
+not a live support service and is not suitable for emergencies or real sensitive records.
 Local MongoDB storage is not configured for encryption at rest. For a fresh
 installation, provision `cases_app` with `readWrite` only on `cases_db`, set
 `CASES_URI` in the ignored `.env`, and keep the password out of source control.

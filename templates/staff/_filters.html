@@ -1,7 +1,7 @@
-<form method="get" class="staff-filters" role="search" aria-label="Filter example cases">
-  <div><label for="q">Search name or reference</label><input id="q" name="q" type="search" maxlength="100" value="{{ request.args.get('q', '')[:100] }}"></div>
-  <div><label for="category">Topic</label><select id="category" name="category"><option value="">All topics</option>{% for item in ['Personal support', 'Study support', 'Practical support'] %}<option value="{{ item }}" {% if request.args.get('category') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
-  <div><label for="status">Status</label><select id="status" name="status"><option value="">All statuses</option>{% for item in ['New', 'In progress', 'Awaiting Student', 'Done'] %}<option value="{{ item }}" {% if request.args.get('status') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+<form method="get" class="staff-filters" role="search" aria-label="Filter cases">
+  <div><label for="q">Search reference</label><input id="q" name="q" type="search" maxlength="100" value="{{ request.args.get('q', '')[:100] }}"></div>
+  <div><label for="category">Topic</label><select id="category" name="category"><option value="">All topics</option>{% for item in ['Personal support', 'Study support', 'Practical support', 'Other support'] %}<option value="{{ item }}" {% if request.args.get('category') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
+  <div><label for="status">Status</label><select id="status" name="status"><option value="">All statuses</option>{% for item in ['Received', 'Assigned', 'In progress', 'Awaiting Student', 'Done'] %}<option value="{{ item }}" {% if request.args.get('status') == item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></div>
   {% if request.endpoint == 'staff_cases' %}<div><label for="sort">Order</label><select id="sort" name="sort"><option value="oldest">Oldest first</option><option value="newest" {% if request.args.get('sort') == 'newest' %}selected{% endif %}>Newest first</option><option value="reference" {% if request.args.get('sort') == 'reference' %}selected{% endif %}>Reference</option></select></div>{% endif %}
   <button class="staff-filter-button" type="submit">Apply filters</button>
 </form>

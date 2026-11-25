@@ -232,33 +232,39 @@ def create_app():
                     return 'Reply temporarily unavailable.', 503
         return render_template('student/detail.html', case=case, notice=notice, reply_error=reply_error), 400 if reply_error else 200
 
-    def staff_filtered_cases():
-        """Filter only synthetic staff fixtures; real queries require assignment checks."""
-        cases = mock_data.get_staff_queue(current_user)
-        query = request.args.get('q', '').strip()[:100]
+    def staff_filtered_cases(assigned_only=False):
+        cases = case_service.staff_queue(current_user, assigned_only=assigned_only)
+        query = request.args.get('q', '').strip()[:100].casefold()
         category = request.args.get('category', '')
         status = request.args.get('status', '')
         if query:
-            cases = [case for case in cases if query.casefold() in case['reference'].casefold()
-                     or query.casefold() in case['student_name'].casefold()]
-        if category in ('Personal support', 'Study support', 'Practical support'):
+            cases = [case for case in cases if query in case['reference'].casefold()]
+        if category in ('Personal support', 'Study support', 'Practical support', 'Other support'):
             cases = [case for case in cases if case['category_label'] == category]
-        if status in ('New', 'In progress', 'Awaiting Student', 'Done'):
+        if status in ('Received', 'Assigned', 'In progress', 'Awaiting Student', 'Done'):
             cases = [case for case in cases if case['status'] == status]
         return cases
 
     @app.get('/staff/home')
     @role_required('staff')
     def staff_home():
-        cases = staff_filtered_cases()
-        priority = {'New': 0, 'Awaiting Student': 1, 'In progress': 2, 'Done': 3}
-        cases.sort(key=lambda case: (priority.get(case['status'], 4), -case['age_days']))
+        try:
+            cases = staff_filtered_cases()
+        except (PyMongoError, RuntimeError):
+            app.logger.warning('Staff queue unavailable.')
+            return 'Staff queue temporarily unavailable.', 503
+        priority = {'Received': 0, 'Awaiting Student': 1, 'Assigned': 2, 'In progress': 3, 'Done': 4}
+        cases.sort(key=lambda case: (not case['attention'] == 'Marked urgent', priority.get(case['status'], 5), -case['age_days']))
         return render_template('staff/home.html', cases=cases)
 
     @app.get('/staff/cases')
     @role_required('staff')
     def staff_cases():
-        cases = staff_filtered_cases()
+        try:
+            cases = staff_filtered_cases(assigned_only=True)
+        except (PyMongoError, RuntimeError):
+            app.logger.warning('Staff cases unavailable.')
+            return 'Staff cases temporarily unavailable.', 503
         order = request.args.get('sort', 'oldest')
         if order == 'newest':
             cases.sort(key=lambda case: case['age_days'])
@@ -268,27 +274,43 @@ def create_app():
             cases.sort(key=lambda case: -case['age_days'])
         return render_template('staff/cases.html', cases=cases)
 
+    @app.post('/staff/cases/<reference>/claim')
+    @role_required('staff')
+    def staff_claim_case(reference):
+        try:
+            if not case_service.claim_case(current_user, reference):
+                return 'This request is no longer available to claim.', 409
+            audit.record('case_claimed', current_user.id, case_reference=reference)
+            return redirect(url_for('staff_case_detail', reference=reference))
+        except (PyMongoError, RuntimeError):
+            app.logger.warning('Case claim unavailable.')
+            return 'Case claim temporarily unavailable.', 503
+
     @app.route('/staff/cases/<reference>', methods=['GET', 'POST'])
     @role_required('staff')
     def staff_case_detail(reference):
-        # Real case reads and actions must verify assignment and object-level access.
-        case = mock_data.get_staff_case(current_user, reference)
-        if case is None:
-            from flask import abort
-            abort(404)
-        notice = None
-        if request.method == 'POST':
-            # Real actions must recheck role, assignment and action-specific permissions.
-            action = request.form.get('action', '')
-            valid = (action == 'archive' or
-                     (action == 'status' and request.form.get('status') in ('New', 'In progress', 'Awaiting Student', 'Done')) or
-                     (action == 'assignment' and request.form.get('assignee') in ('You', 'Support team')) or
-                     (action == 'note' and 1 <= len(request.form.get('note', '').strip()) <= 3000))
-            if not valid:
-                from flask import abort
-                abort(400)
-            notice = 'This is a preview. No changes have been saved.'
-        return render_template('staff/detail.html', case=case, notice=notice)
+        from flask import abort
+        try:
+            # Never return a case belonging to another officer, including on POST.
+            case = case_service.get_staff_case(current_user, reference)
+            if case is None:
+                abort(404)
+            if request.method == 'POST':
+                action = request.form.get('action', '')
+                value = request.form.get('status' if action == 'status' else action, '')
+                try:
+                    updated = case_service.update_staff_case(current_user, reference, action, value)
+                except ValueError:
+                    abort(400)
+                if not updated:
+                    abort(404)
+                audit.record('case_' + action, current_user.id, case_reference=reference)
+                return redirect(url_for('staff_cases' if action == 'archive' else 'staff_case_detail',
+                                        **({} if action == 'archive' else {'reference': reference})))
+            return render_template('staff/detail.html', case=case)
+        except (PyMongoError, RuntimeError):
+            app.logger.warning('Staff case unavailable.')
+            return 'Case temporarily unavailable.', 503
 
     @app.get('/admin/home')
     @role_required('admin')

@@ -31,30 +31,21 @@ def test_staff_routes_require_staff_role(make_client):
     assert make_client().get('/staff/home').status_code == 302
     for role in ('student', 'admin'):
         with patch('services.audit.record') as audit:
-            assert make_client(role).get('/staff/cases/REQ-1042').status_code == 403
+            assert make_client(role).get('/staff/cases/' + 'a' * 32).status_code == 403
             audit.assert_called_once()
 
 
-def test_staff_queue_filters_and_detail_privacy(make_client):
+def test_claim_requires_csrf_and_handles_conflict(make_client):
     client = make_client('staff')
-    page = client.get('/staff/home')
-    assert page.status_code == 200 and b'fictional' in page.data
-    filtered = client.get('/staff/home?status=New')
-    assert b'REQ-1042' in filtered.data and b'REQ-1031' not in filtered.data
-    detail = client.get('/staff/cases/REQ-1042')
-    assert detail.status_code == 200 and b'Fictional internal note.' in detail.data
-    assert b'VISIBLE TO STAFF ONLY' in detail.data and b'SHARED WITH THE STUDENT' in detail.data
-    assert client.get('/staff/cases/NOT-FOUND').status_code == 404
-    assert b'Fictional internal note.' not in make_client('student').get('/student/home').data
-
-
-def test_staff_preview_actions_require_csrf_and_do_not_persist(make_client):
-    client = make_client('staff')
-    url = '/staff/cases/REQ-1042'
-    assert client.post(url, data={'action': 'archive'}).status_code == 400
-    page = client.get(url).get_data(as_text=True)
+    ref = 'a' * 32
+    assert client.post('/staff/cases/' + ref + '/claim').status_code == 400
+    with patch('services.cases.staff_queue', return_value=[]):
+        page = client.get('/staff/home').get_data(as_text=True)
     csrf = re.search(r'name="csrf_token" value="([^"]+)"', page).group(1)
-    response = client.post(url, data={'csrf_token': csrf, 'action': 'archive'})
-    assert response.status_code == 200 and b'No changes have been saved' in response.data
-    assert b'Fictional internal note.' in client.get(url).data
-    assert client.post(url, data={'csrf_token': csrf, 'action': 'status', 'status': 'injected'}).status_code == 400
+    with patch('services.cases.claim_case', return_value=False):
+        assert client.post('/staff/cases/' + ref + '/claim', data={'csrf_token': csrf}).status_code == 409
+
+
+def test_unavailable_staff_storage_returns_error(make_client):
+    with patch('services.cases.staff_queue', side_effect=RuntimeError()):
+        assert make_client('staff').get('/staff/home').status_code == 503

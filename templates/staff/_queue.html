@@ -2,8 +2,13 @@
   <ol class="staff-queue">
     {% for case in cases %}<li><article class="staff-case-row">
       <div class="staff-case-meta"><span class="staff-reference">{{ case.reference }}</span><span>{{ case.updated }}</span></div>
-      <div class="staff-case-main"><div><h3><a href="{{ url_for('staff_case_detail', reference=case.reference) }}">{{ case.student_name }}</a></h3><p>{{ case.category_label }} · {{ case.attention }}</p></div><span class="staff-status">{{ case.status }}</span></div>
-      <a class="staff-case-link" href="{{ url_for('staff_case_detail', reference=case.reference) }}">Open case <span class="staff-sr-only">{{ case.reference }}</span> <span aria-hidden="true">→</span></a>
+      <div class="staff-case-main"><div><h3>Student request</h3><p>{{ case.category_label }} · {{ case.attention }}</p></div><span class="staff-status">{{ case.status }}</span></div>
+      {% if case.claimed %}
+        <a class="staff-case-link" href="{{ url_for('staff_case_detail', reference=case.reference) }}">Open case <span class="staff-sr-only">{{ case.reference }}</span> <span aria-hidden="true">→</span></a>
+      {% else %}
+        {# The server checks the role and claims only an unassigned case atomically. #}
+        <form method="post" action="{{ url_for('staff_claim_case', reference=case.reference) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="staff-secondary" type="submit">Claim request <span class="staff-sr-only">{{ case.reference }}</span></button></form>
+      {% endif %}
     </article></li>{% endfor %}
   </ol>
 {% else %}<div class="staff-empty"><h3>Nothing needs your attention here.</h3><p>Try a different filter, or check back later.</p></div>{% endif %}

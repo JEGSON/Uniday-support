@@ -77,3 +77,86 @@ def add_student_reply(user, reference, reply):
         {'$push': {'student_updates': {'at': now, 'text': reply.strip()}},
          '$set': {'updated_at': now, 'status': 'In progress'}}, return_document=ReturnDocument.AFTER)
     return result is not None
+
+
+def _staff(user):
+    if not getattr(user, 'is_authenticated', False) or getattr(user, 'role', None) != 'staff':
+        raise PermissionError('Staff access required.')
+    if not isinstance(user.id, str) or not ObjectId.is_valid(user.id):
+        raise ValueError('Invalid account identifier.')
+    return ObjectId(user.id)
+
+
+def _reference_ok(reference):
+    return isinstance(reference, str) and _REFERENCE.fullmatch(reference) is not None
+
+
+def _queue_view(document):
+    # The unassigned queue deliberately excludes case descriptions and private notes.
+    now = datetime.now(timezone.utc)
+    created = document['created_at']
+    return {'reference': document['reference'], 'category_label': _LABELS[document['category']],
+            'status': document['status'], 'student_name': 'Student request',
+            'updated': document['updated_at'].strftime('%d %b %Y'),
+            'age_days': max(0, (now - created).days),
+            'attention': 'Marked urgent' if document.get('urgent') else 'Request',
+            'claimed': document.get('assigned_to') is not None}
+
+
+def staff_queue(user, assigned_only=False):
+    staff_id = _staff(user)
+    query = {'assigned_to': staff_id} if assigned_only else {'$or': [{'assigned_to': None}, {'assigned_to': staff_id}]}
+    query['archived'] = {'$ne': True}
+    fields = {'reference': 1, 'category': 1, 'status': 1, 'updated_at': 1,
+              'created_at': 1, 'urgent': 1, 'assigned_to': 1}
+    return [_queue_view(case) for case in db.get_cases().find(query, fields)]
+
+
+def claim_case(user, reference):
+    staff_id = _staff(user)
+    if not _reference_ok(reference):
+        return False
+    now = datetime.now(timezone.utc)
+    # A single conditional write ensures concurrent staff cannot both claim a case.
+    result = db.get_cases().find_one_and_update(
+        {'reference': reference, 'assigned_to': None, 'archived': {'$ne': True}},
+        {'$set': {'assigned_to': staff_id, 'status': 'Assigned', 'updated_at': now}},
+        return_document=ReturnDocument.AFTER)
+    return result is not None
+
+
+def get_staff_case(user, reference):
+    staff_id = _staff(user)
+    if not _reference_ok(reference):
+        return None
+    document = db.get_cases().find_one({'reference': reference, 'assigned_to': staff_id, 'archived': {'$ne': True}})
+    if not document:
+        return None
+    case = _queue_view(document)
+    case['conversation'] = [{'by': item.get('by', 'Student'), 'when': item['at'].strftime('%d %b %Y, %H:%M UTC'),
+                             'text': item['text']} for item in document.get('student_updates', [])]
+    case['private_notes'] = [{'when': item['at'].strftime('%d %b %Y, %H:%M UTC'), 'text': item['text']}
+                             for item in document.get('staff_notes', [])]
+    return case
+
+
+def update_staff_case(user, reference, action, value=''):
+    staff_id = _staff(user)
+    if not _reference_ok(reference):
+        return False
+    now = datetime.now(timezone.utc)
+    update = {'$set': {'updated_at': now}}
+    if action == 'status' and value in ('In progress', 'Awaiting Student', 'Done'):
+        update['$set']['status'] = value
+    elif action in ('note', 'message') and isinstance(value, str) and value.strip() and len(value) <= 3000:
+        item = {'at': now, 'text': value.strip()}
+        if action == 'message':
+            item['by'] = 'Support team'
+        update['$push'] = {'staff_notes' if action == 'note' else 'student_updates': item}
+    elif action == 'archive':
+        update['$set']['archived'] = True
+    else:
+        raise ValueError('Invalid case action.')
+    # Assignment and archive status are checked in the same write as the action.
+    return db.get_cases().update_one({'reference': reference, 'assigned_to': staff_id,
+                                      'archived': {'$ne': True}}, update).matched_count == 1

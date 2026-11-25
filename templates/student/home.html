@@ -7,8 +7,9 @@
   <a class="button student-ask" href="{{ url_for('student_new_request') }}">Ask for help <span aria-hidden="true">↗</span></a>
 </section>
 <section aria-labelledby="requests-title">
-  <div class="student-section-heading"><div><p class="eyebrow">ONE STEP AT A TIME</p><h2 id="requests-title">Your requests</h2></div><p>{{ cases|length }} example {{ 'request' if cases|length == 1 else 'requests' }}</p></div>
-  <p class="preview-note">Preview: these are example requests, not your personal records.</p>
+  <div class="student-section-heading"><div><p class="eyebrow">ONE STEP AT A TIME</p><h2 id="requests-title">Your requests</h2></div><p>{{ cases|length }} {{ 'request' if cases|length == 1 else 'requests' }}</p></div>
+  <p class="preview-note">Local development only: saved requests are not monitored by the support team.</p>
+  {% if unavailable %}<p role="alert">Your requests are temporarily unavailable. Please try again later.</p>{% endif %}
   <div class="student-cards">
     {% for case in cases %}
       <article class="request-card">
@@ -17,8 +18,9 @@
         {% include 'student/_progress.html' %}
         <a class="text-link" href="{{ url_for('student_request_detail', reference=case.reference) }}">View request <span class="sr-only">{{ case.reference }}</span> <span aria-hidden="true">→</span></a>
       </article>
-    {% else %}
+    {% else %}{% if not unavailable %}
       <div class="student-empty"><h3>Nothing here yet.</h3><p>When you ask for help, it will show up here.</p></div>
+    {% endif %}
     {% endfor %}
   </div>
 </section>

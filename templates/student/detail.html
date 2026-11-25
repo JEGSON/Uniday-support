@@ -4,7 +4,7 @@
 <div class="student-detail">
   <a class="student-back" href="{{ url_for('student_home') }}">← Back to your requests</a>
   <p class="eyebrow">YOUR REQUEST · {{ case.reference }}</p><h1>Your request</h1>
-  <p class="preview-note">Preview: this is an example request, not a personal record.</p>
+  <p class="preview-note">Local development only: this request is not monitored by the support team.</p>
   <section class="request-card" aria-labelledby="progress-title"><div class="request-card-top"><h2 id="progress-title">Where things are</h2><span class="request-status">{{ case.status }}</span></div><p>{{ case.summary }}</p>{% include 'student/_progress.html' %}</section>
   <section class="student-timeline" aria-labelledby="timeline-title"><p class="eyebrow">KEEPING YOU IN THE LOOP</p><h2 id="timeline-title">Updates</h2>
     <ol>{% for item in case.timeline %}<li><span>{{ item.when }}</span><p>{{ item.text }}</p></li>{% endfor %}</ol>
@@ -14,8 +14,8 @@
       {% if notice %}<div class="student-notice" role="status">{{ notice }}</div>{% endif %}
       {% if reply_error %}<div class="student-errors" role="alert">{{ reply_error }}</div>{% endif %}
       <p>There’s no need to find perfect words.</p>
-      {# A real reply requires server-side case ownership and status checks. #}
-      <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="sr-only" for="reply">Your reply</label><textarea id="reply" name="reply" rows="5" maxlength="3000" required {% if reply_error %}aria-invalid="true"{% endif %}>{{ request.form.get('reply', '') }}</textarea><button class="button" type="submit">Preview reply →</button></form>
+      {# The server checks ownership and status atomically before saving a reply. #}
+      <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label class="sr-only" for="reply">Your reply</label><textarea id="reply" name="reply" rows="5" maxlength="3000" required {% if reply_error %}aria-invalid="true"{% endif %}>{{ request.form.get('reply', '') }}</textarea><button class="button" type="submit">Save reply →</button></form>
     </section>
   {% endif %}
 </div>

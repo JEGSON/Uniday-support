@@ -15,7 +15,7 @@ from email_validator import EmailNotValidError, validate_email
 
 import db
 from services.users import validate_signup
-from services import audit, auth, enrollment, tokens
+from services import audit, auth, enrollment, tokens, cases as case_service
 from services.passwords import validate_password, hash_password
 from services.decorators import role_required
 import mock_data
@@ -170,8 +170,12 @@ def create_app():
     @app.get('/student/home')
     @role_required('student')
     def student_home():
-        # Fixtures only; replace with a query scoped to the authenticated owner.
-        return render_template('student/home.html', cases=mock_data.get_student_cases(current_user))
+        try:
+            cases = case_service.get_student_cases(current_user)
+        except (PyMongoError, RuntimeError):
+            app.logger.warning('Student cases unavailable.')
+            return render_template('student/home.html', cases=[], unavailable=True), 503
+        return render_template('student/home.html', cases=cases)
 
     @app.route('/student/requests/new', methods=['GET', 'POST'])
     @role_required('student')
@@ -181,7 +185,6 @@ def create_app():
                       ('Accommodation', 'Talk about housing or where you live.'), ('Something else', 'Tell us about another concern.')]
         errors, notice = {}, None
         if request.method == 'POST':
-            # Real submission must validate ownership and persist securely server-side.
             category = request.form.get('category', '')
             description = request.form.get('description', '')
             if category not in {item[0] for item in categories}:
@@ -189,20 +192,29 @@ def create_app():
             if not description.strip() or len(description) > 3000:
                 errors['description'] = 'Write a few words using no more than 3,000 characters.'
             if not errors:
-                notice = 'This is a preview. Your request has not been sent or saved.'
+                try:
+                    reference = case_service.create_student_case(current_user, category, description,
+                                                                 request.form.get('urgent') == 'yes')
+                    return redirect(url_for('student_request_detail', reference=reference))
+                except (PyMongoError, RuntimeError):
+                    app.logger.warning('Student case creation unavailable.')
+                    notice = 'We could not save your request. Please try again later.'
+                    return render_template('student/new_request.html', categories=categories, errors=errors, notice=notice), 503
         return render_template('student/new_request.html', categories=categories, errors=errors, notice=notice), 400 if errors else 200
 
     @app.route('/student/requests/<reference>', methods=['GET', 'POST'])
     @role_required('student')
     def student_request_detail(reference):
-        # Real case and reply access must check ownership for every request.
-        case = mock_data.get_student_case(current_user, reference)
+        try:
+            case = case_service.get_student_case(current_user, reference)
+        except (PyMongoError, RuntimeError):
+            app.logger.warning('Student case unavailable.')
+            return 'Request temporarily unavailable.', 503
         if case is None:
             from flask import abort
             abort(404)
         notice, reply_error = None, None
         if request.method == 'POST':
-            # A real reply must also verify ownership and current case status.
             if case['status'] != 'Awaiting Student':
                 from flask import abort
                 abort(403)
@@ -210,7 +222,14 @@ def create_app():
             if not reply.strip() or len(reply) > 3000:
                 reply_error = 'Write a reply using no more than 3,000 characters.'
             else:
-                notice = 'This is a preview. Your reply has not been sent or saved.'
+                try:
+                    if not case_service.add_student_reply(current_user, reference, reply):
+                        from flask import abort
+                        abort(409)
+                    return redirect(url_for('student_request_detail', reference=reference))
+                except (PyMongoError, RuntimeError):
+                    app.logger.warning('Student reply unavailable.')
+                    return 'Reply temporarily unavailable.', 503
         return render_template('student/detail.html', case=case, notice=notice, reply_error=reply_error), 400 if reply_error else 200
 
     def staff_filtered_cases():

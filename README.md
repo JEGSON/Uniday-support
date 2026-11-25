@@ -30,6 +30,15 @@ it does not establish ownership of a real mailbox and must not be internet-facin
 
 ## Security limitations
 
+Student requests now save to the local `cases_db` using the separate `CASES_URI`
+identity. Student reads and replies are scoped to the signed-in owner; staff
+and admin dashboards still use fictional fixtures and **do not receive or
+monitor saved requests**. Use synthetic information only: this is not a live
+support service and is not suitable for emergencies or real sensitive records.
+Local MongoDB storage is not configured for encryption at rest. For a fresh
+installation, provision `cases_app` with `readWrite` only on `cases_db`, set
+`CASES_URI` in the ignored `.env`, and keep the password out of source control.
+
 The registry is only as trustworthy and current as its source. Its ID/email
 match is not independent proof of identity; real deployments need authoritative
 student records and institutional email or SSO. In-memory limits reset on

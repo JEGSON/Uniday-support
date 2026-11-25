@@ -16,9 +16,17 @@ def init_app(app):
         MONGODB_AUTH_DB=os.environ.get('MONGODB_AUTH_DB', local_settings.get('MONGODB_AUTH_DB')) or 'auth_db',
         MONGODB_AUDIT_DB=os.environ.get('MONGODB_AUDIT_DB', local_settings.get('MONGODB_AUDIT_DB')) or 'audit_db',
         REGISTRY_URI=os.environ.get('REGISTRY_URI', local_settings.get('REGISTRY_URI')),
+        CASES_URI=os.environ.get('CASES_URI', local_settings.get('CASES_URI')),
+        CASES_DB=os.environ.get('CASES_DB', local_settings.get('CASES_DB')) or 'cases_db',
     )
 
     uri = app.config['MONGODB_URI']
+    if app.config['CASES_URI']:
+        try:
+            app.extensions['cases_mongodb'] = MongoClient(app.config['CASES_URI'], connect=False,
+                                                         serverSelectionTimeoutMS=3000, tz_aware=True)
+        except (PyMongoError, ValueError):
+            app.logger.warning('Cases database configuration is invalid.')
     if app.config['REGISTRY_URI']:
         try:
             app.extensions['registry_mongodb'] = MongoClient(app.config['REGISTRY_URI'], connect=False,
@@ -67,3 +75,10 @@ def get_registry():
     if client is None:
         raise RuntimeError('REGISTRY_URI is required for student registration.')
     return client.registry_db.student_registry
+
+
+def get_cases():
+    client = current_app.extensions.get('cases_mongodb')
+    if client is None:
+        raise RuntimeError('CASES_URI is required for case storage.')
+    return client.get_database(current_app.config['CASES_DB']).cases

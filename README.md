@@ -13,8 +13,12 @@ and registry credentials, a session secret, and the configured `BASE_URL`; see
 
 For a local demonstration, `data/examples/student_registry.example.csv` contains
 synthetic records. Validate CSV or JSON with `python -m scripts.seed_registry FILE`;
-this is a dry run. `--apply` requires `REGISTRY_SEED_URI` to point to a separate,
-privileged import identity. The web registry identity has only find/update access;
+this is a dry run (also available with `--dry-run`). `--apply` requires
+`REGISTRY_SEED_URI` in the environment or local `.env` to point to a separate
+import identity with find, insert and createIndex on the registry collection.
+Exact existing records are skipped without changing their claim state; conflicting
+records stop the import. An interrupted standalone MongoDB bulk insert can be
+partial; rerun the command to safely skip matching records. The web registry identity has only find/update access;
 it cannot insert new trusted records. Real datasets can contain personal data:
 use fabricated or consistently pseudonymised records for development and never
 commit raw registry data. MongoDB privileges are collection-level: an identity

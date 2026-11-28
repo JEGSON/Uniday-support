@@ -28,7 +28,7 @@ def _view(document):
     status = document['status']
     steps = {'Received': 0, 'Assigned': 1, 'In progress': 2, 'Awaiting Student': 3, 'Done': 4}
     return {'reference': document['reference'], 'category_label': _LABELS[document['category']],
-            'status': status, 'summary': 'Your request has been saved.',
+            'status': status, 'summary': 'Fictional demo request.' if document.get('demo_seed_batch') else 'Your request has been saved.',
             'updated': document['updated_at'].strftime('%d %b %Y'), 'progress': steps.get(status, 0),
             'timeline': [{'when': item['at'].strftime('%d %b %Y, %H:%M UTC'), 'text': item['text']}
                          for item in document.get('student_updates', [])]}
@@ -99,7 +99,9 @@ def _queue_view(document):
             'status': document['status'], 'student_name': 'Student request',
             'updated': document['updated_at'].strftime('%d %b %Y'),
             'age_days': max(0, (now - created).days),
-            'attention': 'Marked urgent' if document.get('urgent') else 'Request',
+            'attention': ('Fictional demo request' if document.get('demo_seed_batch') else
+                          ('Marked urgent' if document.get('urgent') else 'Request')),
+            'is_demo': bool(document.get('demo_seed_batch')),
             'claimed': document.get('assigned_to') is not None}
 
 
@@ -108,7 +110,7 @@ def staff_queue(user, assigned_only=False):
     query = {'assigned_to': staff_id} if assigned_only else {'$or': [{'assigned_to': None}, {'assigned_to': staff_id}]}
     query['archived'] = {'$ne': True}
     fields = {'reference': 1, 'category': 1, 'status': 1, 'updated_at': 1,
-              'created_at': 1, 'urgent': 1, 'assigned_to': 1}
+              'created_at': 1, 'urgent': 1, 'assigned_to': 1, 'demo_seed_batch': 1}
     return [_queue_view(case) for case in db.get_cases().find(query, fields)]
 
 

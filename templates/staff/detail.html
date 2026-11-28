@@ -4,7 +4,7 @@
 <div class="staff-detail">
   <a class="staff-back" href="{{ url_for('staff_cases') }}">← Back to assigned cases</a>
   <p class="eyebrow">CASE {{ case.reference }}</p><div class="staff-detail-heading"><div><h1>Case details</h1><p>Student request · {{ case.category_label }}</p></div><span class="staff-status">{{ case.status }}</span></div>
-  <p class="staff-preview">Local development only: use fictional information. This is not a monitored support service.</p>
+  <p class="staff-preview">{% if case.is_demo %}Fictional demo case. {% endif %}Local development only: use fictional information. This is not a monitored support service.</p>
   <div class="staff-detail-layout">
     <section class="staff-panel" aria-labelledby="conversation-title"><p class="eyebrow">SHARED WITH THE STUDENT</p><h2 id="conversation-title">Conversation</h2><p class="staff-helper">These updates are visible to the student.</p>
       <ol class="staff-conversation">{% for item in case.conversation %}<li><div><strong>{{ item.by }}</strong><span>{{ item.when }}</span></div><p>{{ item.text }}</p></li>{% endfor %}</ol>

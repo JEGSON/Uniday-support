@@ -13,6 +13,13 @@ _LABELS = {'Wellbeing': 'Personal support', 'Disability': 'Personal support',
            'Academic': 'Study support', 'Financial': 'Practical support',
            'Accommodation': 'Practical support', 'Something else': 'Other support'}
 _REFERENCE = re.compile(r'^[0-9a-f]{32}$')
+TRANSITIONS = {'Assigned': ('In progress', 'Awaiting Student', 'Done'),
+               'In progress': ('Awaiting Student', 'Done'),
+               'Awaiting Student': ('In progress', 'Done'),
+               'Done': ('In progress',)}
+# Database projection excludes private notes before records reach the student service.
+_STUDENT_FIELDS = {'_id': 0, 'reference': 1, 'category': 1, 'status': 1,
+                   'updated_at': 1, 'student_updates': 1, 'demo_seed_batch': 1}
 
 
 def _owner(user):
@@ -45,7 +52,7 @@ def create_student_case(user, category, description, urgent):
     now = datetime.now(timezone.utc)
     reference = secrets.token_hex(16)
     db.get_cases().insert_one({'reference': reference, 'owner_id': owner, 'category': category,
-                               'status': 'Received', 'urgent': urgent, 'created_at': now, 'updated_at': now,
+                               'status': 'Received', 'version': 0, 'urgent': urgent, 'created_at': now, 'updated_at': now,
                                'student_updates': [{'at': now, 'text': description.strip()}]})
     return reference
 
@@ -53,14 +60,14 @@ def create_student_case(user, category, description, urgent):
 def get_student_cases(user):
     owner = _owner(user)
     # Owner filter is mandatory regardless of what reference a client supplies.
-    return [_view(case) for case in db.get_cases().find({'owner_id': owner}).sort('created_at', -1)]
+    return [_view(case) for case in db.get_cases().find({'owner_id': owner, 'archived': {'$ne': True}}, _STUDENT_FIELDS).sort('created_at', -1)]
 
 
 def get_student_case(user, reference):
     owner = _owner(user)
     if not isinstance(reference, str) or not _REFERENCE.fullmatch(reference):
         return None
-    case = db.get_cases().find_one({'owner_id': owner, 'reference': reference})
+    case = db.get_cases().find_one({'owner_id': owner, 'reference': reference, 'archived': {'$ne': True}}, _STUDENT_FIELDS)
     return _view(case) if case else None
 
 
@@ -73,9 +80,9 @@ def add_student_reply(user, reference, reply):
     now = datetime.now(timezone.utc)
     # Atomic filter prevents a reply if ownership or the status changed meanwhile.
     result = db.get_cases().find_one_and_update(
-        {'owner_id': owner, 'reference': reference, 'status': 'Awaiting Student'},
+        {'owner_id': owner, 'reference': reference, 'status': 'Awaiting Student', 'archived': {'$ne': True}},
         {'$push': {'student_updates': {'at': now, 'text': reply.strip()}},
-         '$set': {'updated_at': now, 'status': 'In progress'}}, return_document=ReturnDocument.AFTER)
+         '$set': {'updated_at': now, 'status': 'In progress'}, '$inc': {'version': 1}}, return_document=ReturnDocument.AFTER)
     return result is not None
 
 
@@ -121,8 +128,8 @@ def claim_case(user, reference):
     now = datetime.now(timezone.utc)
     # A single conditional write ensures concurrent staff cannot both claim a case.
     result = db.get_cases().find_one_and_update(
-        {'reference': reference, 'assigned_to': None, 'archived': {'$ne': True}},
-        {'$set': {'assigned_to': staff_id, 'status': 'Assigned', 'updated_at': now}},
+        {'reference': reference, 'assigned_to': None, 'status': 'Received', 'archived': {'$ne': True}},
+        {'$set': {'assigned_to': staff_id, 'status': 'Assigned', 'updated_at': now}, '$inc': {'version': 1}},
         return_document=ReturnDocument.AFTER)
     return result is not None
 
@@ -135,6 +142,8 @@ def get_staff_case(user, reference):
     if not document:
         return None
     case = _queue_view(document)
+    case['version'] = document.get('version', 0)
+    case['allowed_statuses'] = TRANSITIONS.get(document['status'], ())
     case['conversation'] = [{'by': item.get('by', 'Student'), 'when': item['at'].strftime('%d %b %Y, %H:%M UTC'),
                              'text': item['text']} for item in document.get('student_updates', [])]
     case['private_notes'] = [{'when': item['at'].strftime('%d %b %Y, %H:%M UTC'), 'text': item['text']}
@@ -142,13 +151,26 @@ def get_staff_case(user, reference):
     return case
 
 
-def update_staff_case(user, reference, action, value=''):
+def active_staff_choices(user):
+    staff_id = _staff(user)
+    return [{'id': str(doc['_id']), 'name': doc.get('full_name', 'Support officer')}
+            for doc in db.get_users().find({'role': 'staff', 'is_active': True, '_id': {'$ne': staff_id}},
+                                           {'full_name': 1}).sort('full_name', 1).limit(100)]
+
+
+def update_staff_case(user, reference, action, value='', expected_version=None):
     staff_id = _staff(user)
     if not _reference_ok(reference):
-        return False
+        return None
+    if type(expected_version) is not int or not 0 <= expected_version <= 2**31 - 1:
+        raise ValueError('Invalid case version.')
     now = datetime.now(timezone.utc)
-    update = {'$set': {'updated_at': now}}
-    if action == 'status' and value in ('In progress', 'Awaiting Student', 'Done'):
+    update = {'$set': {'updated_at': now}, '$inc': {'version': 1}}
+    query = {'reference': reference, 'assigned_to': staff_id, 'archived': {'$ne': True}}
+    query['$or'] = [{'version': 0}, {'version': {'$exists': False}}] if expected_version == 0 else [{'version': expected_version}]
+    if action == 'status' and isinstance(value, str) and value in ('In progress', 'Awaiting Student', 'Done'):
+        # MongoDB checks the previous state together with assignment and version.
+        query['status'] = {'$in': [source for source, destinations in TRANSITIONS.items() if value in destinations]}
         update['$set']['status'] = value
     elif action in ('note', 'message') and isinstance(value, str) and value.strip() and len(value) <= 3000:
         item = {'at': now, 'text': value.strip()}
@@ -157,8 +179,24 @@ def update_staff_case(user, reference, action, value=''):
         update['$push'] = {'staff_notes' if action == 'note' else 'student_updates': item}
     elif action == 'archive':
         update['$set']['archived'] = True
+    elif action == 'reassign' and isinstance(value, str) and ObjectId.is_valid(value):
+        target = ObjectId(value)
+        if target == staff_id or not db.get_users().find_one({'_id': target, 'role': 'staff', 'is_active': True}, {'_id': 1}):
+            raise ValueError('Invalid assignee.')
+        update['$set']['assigned_to'] = target
     else:
         raise ValueError('Invalid case action.')
-    # Assignment and archive status are checked in the same write as the action.
-    return db.get_cases().update_one({'reference': reference, 'assigned_to': staff_id,
-                                      'archived': {'$ne': True}}, update).matched_count == 1
+    # Use a conditional write so stale forms cannot overwrite newer changes.
+    previous = db.get_cases().find_one_and_update(query, update, return_document=ReturnDocument.BEFORE)
+    if previous is None:
+        return None
+    if action == 'status':
+        return {'old_value': previous['status'], 'new_value': value}
+    if action == 'reassign':
+        return {'old_value': str(staff_id), 'new_value': value}
+    if action == 'archive':
+        return {'old_value': False, 'new_value': True}
+    # Record only counts for appended notes/messages, never sensitive text.
+    field = 'staff_notes' if action == 'note' else 'student_updates'
+    previous_count = len(previous.get(field, []))
+    return {'old_value': previous_count, 'new_value': previous_count + 1}

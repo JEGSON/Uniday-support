@@ -9,24 +9,29 @@
     <section class="staff-panel" aria-labelledby="conversation-title"><p class="eyebrow">SHARED WITH THE STUDENT</p><h2 id="conversation-title">Conversation</h2><p class="staff-helper">These updates are visible to the student.</p>
       <ol class="staff-conversation">{% for item in case.conversation %}<li><div><strong>{{ item.by }}</strong><span>{{ item.when }}</span></div><p>{{ item.text }}</p></li>{% endfor %}</ol>
       {# Server checks staff role and current assignment on every message. #}
-      <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="message"><label for="message">Update visible to the student</label><textarea id="message" name="message" rows="4" maxlength="3000" required></textarea><button class="staff-secondary" type="submit">Send update</button></form>
+      <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ case.version }}"><input type="hidden" name="action" value="message"><label for="message">Update visible to the student</label><textarea id="message" name="message" rows="4" maxlength="3000" required></textarea><button class="staff-secondary" type="submit">Send update</button></form>
     </section>
     <div class="staff-detail-side">
       <section class="staff-panel staff-private" aria-labelledby="notes-title"><p class="eyebrow">VISIBLE TO ASSIGNED STAFF ONLY</p><h2 id="notes-title">Private notes</h2><p class="staff-helper">These notes are not shown to the student.</p>
         {% for note in case.private_notes %}<div class="staff-note"><small>{{ note.when }}</small><p>{{ note.text }}</p></div>{% else %}<p>No private notes yet.</p>{% endfor %}
         {# Server checks staff role and assignment before recording a private note. #}
-        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="note"><label for="note">Add a private note</label><textarea id="note" name="note" rows="4" maxlength="3000" required></textarea><button class="staff-secondary" type="submit">Save note</button></form>
+        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ case.version }}"><input type="hidden" name="action" value="note"><label for="note">Add a private note</label><textarea id="note" name="note" rows="4" maxlength="3000" required></textarea><button class="staff-secondary" type="submit">Save note</button></form>
       </section>
       <section class="staff-panel" aria-labelledby="case-controls"><p class="eyebrow">NEXT STEPS</p><h2 id="case-controls">Case settings</h2>
         {# Server checks staff role and assignment before changing status. #}
-        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="status"><label for="status-change">Status</label><select id="status-change" name="status">{% for status in ['In progress', 'Awaiting Student', 'Done'] %}<option {% if status == case.status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select><button class="staff-secondary" type="submit">Save status</button></form>
+        <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ case.version }}"><input type="hidden" name="action" value="status"><label for="status-change">Status</label><select id="status-change" name="status">{% for status in case.allowed_statuses %}<option {% if status == case.status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select><button class="staff-secondary" type="submit">Save status</button></form>
+        <button type="button" class="staff-secondary" data-open-dialog="reassign-dialog" hidden>Reassign case</button>
         <button type="button" class="staff-archive" data-open-dialog="archive-dialog" hidden>Archive case</button><noscript><p class="staff-helper">Enable JavaScript to use the archive confirmation.</p></noscript>
       </section>
     </div>
   </div>
-  <dialog id="archive-dialog" class="staff-dialog" aria-labelledby="archive-title" aria-describedby="archive-explanation"><h2 id="archive-title">Archive this case?</h2><p id="archive-explanation">This removes the case from your staff queue. The student can still see their request.</p>
+  <dialog id="reassign-dialog" class="staff-dialog" aria-labelledby="reassign-title" aria-describedby="reassign-explanation"><h2 id="reassign-title">Reassign this case?</h2><p id="reassign-explanation">The selected active support officer will take over. You will no longer have access.</p>
+    {# Server checks current assignment, version and target staff account. #}
+    {% if staff_choices %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ case.version }}"><input type="hidden" name="action" value="reassign"><label for="reassign-target">Support officer</label><select id="reassign-target" name="reassign" required>{% for officer in staff_choices %}<option value="{{ officer.id }}">{{ officer.name }}</option>{% endfor %}</select><div class="staff-dialog-actions"><button type="button" class="staff-secondary" data-close-dialog>Cancel</button><button class="button" type="submit">Confirm reassignment</button></div></form>{% else %}<p>No other active support officers are available.</p><button type="button" class="staff-secondary" data-close-dialog>Close</button>{% endif %}
+  </dialog>
+  <dialog id="archive-dialog" class="staff-dialog" aria-labelledby="archive-title" aria-describedby="archive-explanation"><h2 id="archive-title">Archive this case?</h2><p id="archive-explanation">This hides the case from the staff queue and student view. The record is kept.</p>
     {# Server checks staff role and assignment before archiving. #}
-    <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="archive"><div class="staff-dialog-actions"><button type="button" class="staff-secondary" data-close-dialog>Cancel</button><button class="button" type="submit">Archive case</button></div></form>
+    <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="version" value="{{ case.version }}"><input type="hidden" name="action" value="archive"><div class="staff-dialog-actions"><button type="button" class="staff-secondary" data-close-dialog>Cancel</button><button class="button" type="submit">Archive case</button></div></form>
   </dialog>
 </div>
 {% endblock %}

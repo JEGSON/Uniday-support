@@ -191,10 +191,14 @@ def create_app():
                 errors['category'] = 'Choose the topic that feels closest.'
             if not description.strip() or len(description) > 3000:
                 errors['description'] = 'Write a few words using no more than 3,000 characters.'
+            urgent = request.form.getlist('urgent')
+            if urgent not in ([], ['yes']):
+                errors['urgent'] = 'Please check the urgent option.'
             if not errors:
                 try:
                     reference = case_service.create_student_case(current_user, category, description,
-                                                                 request.form.get('urgent') == 'yes')
+                                                                 urgent == ['yes'])
+                    audit.record('case_created', current_user.id, case_reference=reference)
                     return redirect(url_for('student_request_detail', reference=reference))
                 except (PyMongoError, RuntimeError):
                     app.logger.warning('Student case creation unavailable.')
@@ -212,6 +216,9 @@ def create_app():
             return 'Request temporarily unavailable.', 503
         if case is None:
             from flask import abort
+            # The same response covers absent and other people's cases; avoid logging
+            # attacker-controlled references or any case content.
+            audit.record('case_viewed_denied', current_user.id)
             abort(404)
         notice, reply_error = None, None
         if request.method == 'POST':
@@ -226,6 +233,8 @@ def create_app():
                     if not case_service.add_student_reply(current_user, reference, reply):
                         from flask import abort
                         abort(409)
+                    audit.record('student_reply', current_user.id, case_reference=reference,
+                                 old_value='Awaiting Student', new_value='In progress')
                     return redirect(url_for('student_request_detail', reference=reference))
                 except (PyMongoError, RuntimeError):
                     app.logger.warning('Student reply unavailable.')
@@ -280,7 +289,10 @@ def create_app():
         try:
             if not case_service.claim_case(current_user, reference):
                 return 'This request is no longer available to claim.', 409
-            audit.record('case_claimed', current_user.id, case_reference=reference)
+            audit.record('case_claimed', current_user.id, case_reference=reference,
+                         old_value='unassigned', new_value=current_user.id)
+            audit.record('case_status', current_user.id, case_reference=reference,
+                         old_value='Received', new_value='Assigned')
             return redirect(url_for('staff_case_detail', reference=reference))
         except (PyMongoError, RuntimeError):
             app.logger.warning('Case claim unavailable.')
@@ -298,16 +310,19 @@ def create_app():
             if request.method == 'POST':
                 action = request.form.get('action', '')
                 value = request.form.get('status' if action == 'status' else action, '')
+                raw_version = request.form.get('version', '')
+                if not raw_version.isascii() or not raw_version.isdigit() or len(raw_version) > 10:
+                    abort(400)
                 try:
-                    updated = case_service.update_staff_case(current_user, reference, action, value)
+                    changes = case_service.update_staff_case(current_user, reference, action, value, int(raw_version))
                 except ValueError:
                     abort(400)
-                if not updated:
-                    abort(404)
-                audit.record('case_' + action, current_user.id, case_reference=reference)
-                return redirect(url_for('staff_cases' if action == 'archive' else 'staff_case_detail',
-                                        **({} if action == 'archive' else {'reference': reference})))
-            return render_template('staff/detail.html', case=case)
+                if changes is None:
+                    return 'This case changed or is no longer available. Refresh the page and try again.', 409
+                audit.record('case_' + action, current_user.id, case_reference=reference, **changes)
+                return redirect(url_for('staff_cases' if action in ('archive', 'reassign') else 'staff_case_detail',
+                                        **({} if action in ('archive', 'reassign') else {'reference': reference})))
+            return render_template('staff/detail.html', case=case, staff_choices=case_service.active_staff_choices(current_user))
         except (PyMongoError, RuntimeError):
             app.logger.warning('Staff case unavailable.')
             return 'Case temporarily unavailable.', 503

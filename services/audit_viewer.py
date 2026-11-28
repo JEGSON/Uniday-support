@@ -10,8 +10,11 @@ EVENTS = {'login_success': 'signed in', 'login_failure': 'sign-in was unsuccessf
           'verification_success': 'verified an account', 'verification_failure': 'verification was unsuccessful',
           'token_expired': 'verification link expired', 'resend_requested': 'requested another verification link',
           'resend_rate_limited': 'verification resend was limited', 'case_claimed': 'claimed a case',
+          'case_created': 'created a case', 'case_viewed_denied': 'could not access a case',
+          'student_reply': 'replied to a case',
           'case_message': 'sent a case update', 'case_note': 'added a private note',
           'case_status': 'changed case status', 'case_archive': 'archived a case',
+          'case_reassign': 'reassigned a case',
           'user_activated': 'activated an account', 'user_deactivated': 'deactivated an account',
           'role_changed': 'changed an account role', 'admin_action_denied': 'an admin action was denied'}
 

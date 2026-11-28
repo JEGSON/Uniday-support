@@ -39,6 +39,13 @@ identity. Student reads and replies are scoped to the signed-in owner; staff
 can claim unassigned requests and access only their assigned cases. Admin pages
 show local case counts, user records and audit events. Use synthetic information only: this is
 not a live support service and is not suitable for emergencies or real sensitive records.
+Staff updates use conditional version checks; cases predating this feature are
+treated as version zero until their next update. Archive hides a retained case
+from both staff and student pages. Reassignment checks the target staff account
+before the case write, but a target could be deactivated between those operations
+on standalone MongoDB. Restart all application processes after an upgrade so an
+older process cannot bypass version checks. Audit events are best effort and are
+not atomic with case changes.
 Local MongoDB storage is not configured for encryption at rest. For a fresh
 installation, provision `cases_app` with `readWrite` only on `cases_db`, set
 `CASES_URI` in the ignored `.env`, and keep the password out of source control.

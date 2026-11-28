@@ -5,7 +5,7 @@ from pymongo.errors import PyMongoError
 import db
 
 
-def record(event, user_id=None, case_reference=None, target_id=None, old_role=None, new_role=None):
+def record(event, user_id=None, case_reference=None, target_id=None, old_role=None, new_role=None, old_value=None, new_value=None):
     try:
         entry = {
             'event_type': event, 'user_id': user_id,
@@ -21,6 +21,10 @@ def record(event, user_id=None, case_reference=None, target_id=None, old_role=No
             entry['old_role'] = old_role
         if new_role is not None:
             entry['new_role'] = new_role
+        if old_value is not None:
+            entry['old_value'] = old_value
+        if new_value is not None:
+            entry['new_value'] = new_value
         db.get_audit_collection(write=True).insert_one(entry)
     except (PyMongoError, RuntimeError):
         current_app.logger.warning('Security event could not be recorded.')

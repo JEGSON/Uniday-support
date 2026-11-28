@@ -23,7 +23,8 @@
       <p id="description-count" class="field-help" aria-live="polite">Up to 3,000 characters.</p>
       {% if errors.description %}<p class="field-error" id="description-error">{{ errors.description }}</p>{% endif %}
     </div>
-    <label class="urgent-option"><input type="checkbox" name="urgent" value="yes" {% if request.form.get('urgent') == 'yes' %}checked{% endif %}><span><strong>This feels urgent</strong><small>Requests are not monitored. If you are in immediate danger, contact local emergency services.</small></span></label>
+    <label class="urgent-option"><input id="urgent" type="checkbox" name="urgent" value="yes" {% if request.form.get('urgent') == 'yes' %}checked{% endif %} {% if errors.urgent %}aria-invalid="true" aria-describedby="urgent-error"{% endif %}><span><strong>This feels urgent</strong><small>Requests are not monitored. If you are in immediate danger, contact local emergency services.</small></span></label>
+    {% if errors.urgent %}<p class="field-error" id="urgent-error">{{ errors.urgent }}</p>{% endif %}
     <p class="privacy-note">Your information matters. Share what feels relevant and check your university’s privacy information for how it is used.</p>
     <button class="button" type="submit">Save request <span aria-hidden="true">→</span></button>
   </form>

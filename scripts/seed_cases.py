@@ -90,7 +90,7 @@ def build_cases(student_ids, staff_ids, count=180, now=None):
         # New cases are intentionally unassigned so the real claim flow can be tested.
         staff = None if status == 'Received' else staff_ids[(index // len(categories)) % len(staff_ids)]
         record = {'_id': ObjectId(digest[:24]), 'reference': secrets.token_hex(16), 'demo_seed_batch': BATCH,
-                  'owner_id': student, 'category': category, 'status': status, 'urgent': False,
+                  'owner_id': student, 'category': category, 'status': status, 'version': 0, 'urgent': False,
                   'created_at': created, 'updated_at': updated, 'assigned_to': staff,
                   'student_updates': [{'at': created, 'by': 'Student',
                                        'text': 'Fictional demo: ' + rng.choice(DESCRIPTIONS[category])}]}

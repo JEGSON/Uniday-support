@@ -1,0 +1,10 @@
+.git
+.env*
+.venv*
+secrets
+deploy/certs
+data
+__pycache__
+.pytest_cache
+.coverage
+htmlcov

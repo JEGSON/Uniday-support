@@ -165,7 +165,7 @@ def test_student_forgery_xss_denial_and_audit_events(setup_cases):
     assert created.status_code == 302
     ref = created.location.rsplit('/', 1)[-1]
     document = collection.find_one({'reference': ref})
-    assert document['owner_id'] == ObjectId(first.id) and document['status'] == 'Received'
+    assert document['owner_id'] == ObjectId(first.id) and document['status'] == 'New'
     assert 'assigned_to' not in document and document['urgent'] is True
     html = client.get(created.location).get_data(as_text=True)
     assert payload not in html and '&lt;script&gt;' in html
@@ -259,3 +259,194 @@ def test_note_audit_records_only_counts(setup_cases):
         result = cases.update_staff_case(staff, ref, 'note', 'sensitive note marker', 1)
         assert result == {'old_value': 0, 'new_value': 1}
         assert 'sensitive note marker' not in repr(result)
+
+
+def test_dashboard_context_never_receives_private_staff_notes(setup_cases):
+    from flask import template_rendered
+
+    app, collection = setup_cases
+    student = User({'_id': ObjectId(), 'role': 'student'})
+    staff = User({'_id': ObjectId(), 'role': 'staff'})
+    accounts = {user.id: user for user in (student, staff)}
+    app.login_manager.user_loader(lambda uid: accounts.get(uid))
+    private_marker = 'private-note-context-test-marker'
+    visible_marker = 'student-visible-context-test-marker'
+    with app.app_context():
+        reference = cases.create_student_case(student, 'Academic', visible_marker, False)
+        assert cases.claim_case(staff, reference)
+        assert cases.update_staff_case(staff, reference, 'note', private_marker, 1)
+    assert private_marker not in repr(collection.find_one({'reference': reference}))
+
+    rendered = []
+    def capture(sender, template, context, **kwargs):
+        rendered.append((template.name, dict(context)))
+
+    client = app.test_client()
+    with template_rendered.connected_to(capture, app):
+        with client.session_transaction() as session:
+            session.update(_user_id=staff.id, _fresh=True, last_activity=time.time())
+        assert client.get('/staff/cases/' + reference).status_code == 200
+        assert rendered[-1][0] == 'staff/detail.html'
+        assert private_marker in repr(rendered[-1][1]['case'])
+
+        with client.session_transaction() as session:
+            session.update(_user_id=student.id, _fresh=True, last_activity=time.time())
+        for path, template_name, context_key in [
+            ('/student/home', 'student/home.html', 'cases'),
+            ('/student/requests/' + reference, 'student/detail.html', 'case'),
+        ]:
+            response = client.get(path)
+            assert response.status_code == 200
+            assert rendered[-1][0] == template_name
+            context = rendered[-1][1]
+            assert all(private_marker not in repr(value) for value in context.values())
+            assert 'staff_notes' not in repr(context[context_key])
+            assert 'private_notes' not in repr(context[context_key])
+        assert visible_marker in client.get('/student/requests/' + reference).get_data(as_text=True)
+
+
+def test_dashboards_fail_safely_with_wrong_encryption_key(setup_cases):
+    import json
+    from cryptography.fernet import Fernet
+
+    app, _ = setup_cases
+    student = User({'_id': ObjectId(), 'role': 'student'})
+    staff = User({'_id': ObjectId(), 'role': 'staff'})
+    accounts = {user.id: user for user in (student, staff)}
+    app.login_manager.user_loader(lambda uid: accounts.get(uid))
+    with app.app_context():
+        reference = cases.create_student_case(student, 'Academic', 'Confidential test text', False)
+        assert cases.claim_case(staff, reference)
+    app.config['CASE_ENCRYPTION_KEYS'] = json.dumps({'test-v1': Fernet.generate_key().decode()})
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session.update(_user_id=student.id, _fresh=True, last_activity=time.time())
+    for path in ('/student/home', '/student/requests/' + reference):
+        response = client.get(path)
+        assert response.status_code == 503
+        assert b'Confidential test text' not in response.data
+    with client.session_transaction() as session:
+        session.update(_user_id=staff.id, _fresh=True, last_activity=time.time())
+    response = client.get('/staff/cases/' + reference)
+    assert response.status_code == 503
+    assert b'Confidential test text' not in response.data
+
+
+def test_operator_inputs_cannot_change_case_queries(setup_cases):
+    app, collection = setup_cases
+    student = User({'_id': ObjectId(), 'role': 'student'})
+    staff = User({'_id': ObjectId(), 'role': 'staff'})
+    operator = {'$ne': ''}
+    with app.app_context():
+        reference = cases.create_student_case(student, 'Academic', 'Fictional request', False)
+        for category, description, urgent in [(operator, 'text', False),
+                                               ('Academic', operator, False),
+                                               ('Academic', 'text', operator)]:
+            with pytest.raises(ValueError):
+                cases.create_student_case(student, category, description, urgent)
+        assert cases.get_student_case(student, operator) is None
+        assert not cases.add_student_reply(student, operator, 'text')
+        assert not cases.claim_case(staff, operator)
+        assert cases.get_staff_case(staff, operator) is None
+        assert cases.claim_case(staff, reference)
+        assert cases.update_staff_case(staff, operator, 'note', 'text', 1) is None
+        with pytest.raises(ValueError):
+            cases.update_staff_case(staff, reference, 'reassign', operator, 1)
+        with pytest.raises(ValueError):
+            cases.update_staff_case(staff, reference, 'status', operator, 1)
+        assert collection.count_documents({}) == 1
+        assert collection.find_one({'reference': reference})['version'] == 1
+
+
+def test_unassigned_queue_exposes_metadata_but_not_case_detail(setup_cases):
+    app, _ = setup_cases
+    student = User({'_id': ObjectId(), 'role': 'student'})
+    staff = User({'_id': ObjectId(), 'role': 'staff'})
+    app.login_manager.user_loader(lambda uid: staff if uid == staff.id else None)
+    with app.app_context():
+        reference = cases.create_student_case(student, 'Academic', 'unassigned-private-marker', False)
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session.update(_user_id=staff.id, _fresh=True, last_activity=time.time())
+    response = client.get('/staff/home')
+    assert response.status_code == 200
+    assert reference.encode() in response.data
+    assert b'unassigned-private-marker' not in response.data
+    assert client.get('/staff/cases/' + reference).status_code == 404
+
+
+def test_all_staff_changes_write_content_free_audit_events(setup_cases):
+    app, collection = setup_cases
+    database = collection.database
+    app.extensions['audit_writer'] = database.client
+    app.config['MONGODB_AUDIT_DB'] = database.name
+    student = User({'_id': ObjectId(), 'role': 'student'})
+    first = User({'_id': ObjectId(), 'role': 'staff'})
+    second = User({'_id': ObjectId(), 'role': 'staff'})
+    database.users.insert_one({'_id': ObjectId(second.id), 'role': 'staff', 'is_active': True})
+    accounts = {user.id: user for user in (student, first, second)}
+    app.login_manager.user_loader(lambda uid: accounts.get(uid))
+    with app.app_context():
+        reference = cases.create_student_case(student, 'Academic', 'private description marker', False)
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session.update(_user_id=first.id, _fresh=True, last_activity=time.time())
+    queue = client.get('/staff/home').get_data(as_text=True)
+    csrf = re.search(r'name="csrf_token" value="([^"]+)"', queue).group(1)
+    path = '/staff/cases/' + reference
+    assert client.post(path + '/claim', data={'csrf_token': csrf}).status_code == 302
+    actions = [(1, 'note', 'private note marker'), (2, 'message', 'student message marker'),
+               (3, 'status', 'Awaiting Student'), (4, 'reassign', second.id)]
+    for version, action, value in actions:
+        assert client.post(path, data={'csrf_token': csrf, 'version': str(version),
+                                       'action': action, action: value}).status_code == 302
+    with client.session_transaction() as session:
+        session.update(_user_id=second.id, _fresh=True, last_activity=time.time())
+    assert client.post(path, data={'csrf_token': csrf, 'version': '5', 'action': 'archive'}).status_code == 302
+    events = list(database.events.find({'case_reference': reference}))
+    event_types = {event['event_type'] for event in events}
+    assert {'case_claimed', 'case_status', 'case_note', 'case_message', 'case_reassign', 'case_archive'} <= event_types
+    assert any(event['event_type'] == 'case_status' and event['old_value'] == 'New'
+               and event['new_value'] == 'Assigned' for event in events)
+    for event in events:
+        assert 'old_value' in event and 'new_value' in event
+        for secret in ('private description marker', 'private note marker', 'student message marker'):
+            assert secret not in repr(event)
+
+
+def test_legacy_received_case_remains_claimable(setup_cases):
+    app, collection = setup_cases
+    student = User({'_id': ObjectId(), 'role': 'student'})
+    staff = User({'_id': ObjectId(), 'role': 'staff'})
+    with app.app_context():
+        reference = cases.create_student_case(student, 'Academic', 'Legacy example', False)
+        collection.update_one({'reference': reference}, {'$set': {'status': 'Received'}})
+        assert cases.claim_case(staff, reference, include_previous=True) == 'Received'
+        assert cases.get_staff_case(staff, reference)['status'] == 'Assigned'
+
+
+def test_mongosh_raw_case_has_no_plaintext(setup_cases):
+    import json
+    import subprocess
+
+    if os.environ.get('RUN_MONGOSH_TESTS') != '1':
+        pytest.skip('Set RUN_MONGOSH_TESTS=1 to inspect a disposable case through Docker mongosh.')
+    app, collection = setup_cases
+    student = User({'_id': ObjectId(), 'role': 'student'})
+    staff = User({'_id': ObjectId(), 'role': 'staff'})
+    with app.app_context():
+        reference = cases.create_student_case(student, 'Academic', 'mongo-description-test-marker', False)
+        assert cases.claim_case(staff, reference)
+        assert cases.update_staff_case(staff, reference, 'note', 'mongo-note-test-marker', 1)
+    # Credentials are read inside the container and never placed in command arguments.
+    script = ('if (!db.getSiblingDB("admin").auth(process.env.MONGO_INITDB_ROOT_USERNAME, '
+              'process.env.MONGO_INITDB_ROOT_PASSWORD)) throw Error("authentication failed"); '
+              'const record = db.getSiblingDB(' + json.dumps(collection.database.name) + ').cases.findOne({reference: '
+              + json.dumps(reference) + '}); if (!record) throw Error("case missing"); '
+              'const raw = EJSON.stringify(record); '
+              'if (raw.includes("mongo-description-test-marker") || raw.includes("mongo-note-test-marker")) '
+              'throw Error("plaintext detected"); print("encrypted case verified");')
+    result = subprocess.run(['docker', 'compose', 'exec', '-T', 'mongodb', 'mongosh', '--quiet', '--norc',
+                             '--eval', script], capture_output=True, text=True, timeout=30, check=False)
+    assert result.returncode == 0, 'mongosh inspection failed'
+    assert 'encrypted case verified' in result.stdout

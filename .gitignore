@@ -21,3 +21,10 @@ playwright-report/
 # Raw downloads and generated data need explicit review before inclusion.
 data/raw/
 data/processed/
+# Ignore other datasets by default; the single tracked CSV is fictional example data.
+data/**/*.csv
+!data/examples/student_registry.example.csv
+# Local database files must not become repository artifacts.
+*.sqlite
+*.sqlite3
+*.db

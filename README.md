@@ -46,7 +46,9 @@ before the case write, but a target could be deactivated between those operation
 on standalone MongoDB. Restart all application processes after an upgrade so an
 older process cannot bypass version checks. Audit events are best effort and are
 not atomic with case changes.
-Local MongoDB storage is not configured for encryption at rest. For a fresh
+Case text is encrypted by the application; MongoDB storage itself is not
+configured for full-disk encryption. See `docs/case-encryption.md` for key,
+backup and migration limitations. For a fresh
 installation, provision `cases_app` with `readWrite` only on `cases_db`, set
 `CASES_URI` in the ignored `.env`, and keep the password out of source control.
 
@@ -67,6 +69,10 @@ is best effort, so a database outage can cause missing audit events. No real ema
 verification or privacy compliance is established by the local demo.
 
 ## Test and security checks
+
+The UCI course-data source, licence and fictional-data limitations are documented in
+`docs/dataset-licence.md`. Repository scan results and remaining Git workflow steps are
+recorded in `docs/repository-hygiene.md`.
 
 Run `python -m pytest -q` for unit tests. Integration tests require an explicitly
 configured `TEST_MONGODB_URI` with permission to create and remove throwaway

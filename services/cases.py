@@ -7,6 +7,7 @@ from bson import ObjectId
 from pymongo import ReturnDocument
 
 import db
+from services.case_crypto import encrypt_text, decrypt_text
 
 CATEGORIES = ('Wellbeing', 'Academic', 'Financial', 'Disability', 'Accommodation', 'Something else')
 _LABELS = {'Wellbeing': 'Personal support', 'Disability': 'Personal support',
@@ -32,12 +33,14 @@ def _owner(user):
 
 def _view(document):
     # Explicit allowlist: internal notes or future staff-only fields never enter templates.
-    status = document['status']
+    # Preserve the existing interface label while storing the canonical new status.
+    status = 'Received' if document['status'] == 'New' else document['status']
     steps = {'Received': 0, 'Assigned': 1, 'In progress': 2, 'Awaiting Student': 3, 'Done': 4}
     return {'reference': document['reference'], 'category_label': _LABELS[document['category']],
             'status': status, 'summary': 'Fictional demo request.' if document.get('demo_seed_batch') else 'Your request has been saved.',
             'updated': document['updated_at'].strftime('%d %b %Y'), 'progress': steps.get(status, 0),
-            'timeline': [{'when': item['at'].strftime('%d %b %Y, %H:%M UTC'), 'text': item['text']}
+            'timeline': [{'when': item['at'].strftime('%d %b %Y, %H:%M UTC'),
+                          'text': decrypt_text(item['text'], document['reference'], 'student_updates')}
                          for item in document.get('student_updates', [])]}
 
 
@@ -52,8 +55,8 @@ def create_student_case(user, category, description, urgent):
     now = datetime.now(timezone.utc)
     reference = secrets.token_hex(16)
     db.get_cases().insert_one({'reference': reference, 'owner_id': owner, 'category': category,
-                               'status': 'Received', 'version': 0, 'urgent': urgent, 'created_at': now, 'updated_at': now,
-                               'student_updates': [{'at': now, 'text': description.strip()}]})
+                               'status': 'New', 'version': 0, 'urgent': urgent, 'created_at': now, 'updated_at': now,
+                               'student_updates': [{'at': now, 'text': encrypt_text(description.strip(), reference, 'student_updates')}]})
     return reference
 
 
@@ -81,7 +84,7 @@ def add_student_reply(user, reference, reply):
     # Atomic filter prevents a reply if ownership or the status changed meanwhile.
     result = db.get_cases().find_one_and_update(
         {'owner_id': owner, 'reference': reference, 'status': 'Awaiting Student', 'archived': {'$ne': True}},
-        {'$push': {'student_updates': {'at': now, 'text': reply.strip()}},
+        {'$push': {'student_updates': {'at': now, 'text': encrypt_text(reply.strip(), reference, 'student_updates')}},
          '$set': {'updated_at': now, 'status': 'In progress'}, '$inc': {'version': 1}}, return_document=ReturnDocument.AFTER)
     return result is not None
 
@@ -103,7 +106,7 @@ def _queue_view(document):
     now = datetime.now(timezone.utc)
     created = document['created_at']
     return {'reference': document['reference'], 'category_label': _LABELS[document['category']],
-            'status': document['status'], 'student_name': 'Student request',
+            'status': 'Received' if document['status'] == 'New' else document['status'], 'student_name': 'Student request',
             'updated': document['updated_at'].strftime('%d %b %Y'),
             'age_days': max(0, (now - created).days),
             'attention': ('Fictional demo request' if document.get('demo_seed_batch') else
@@ -121,17 +124,18 @@ def staff_queue(user, assigned_only=False):
     return [_queue_view(case) for case in db.get_cases().find(query, fields)]
 
 
-def claim_case(user, reference):
+def claim_case(user, reference, *, include_previous=False):
     staff_id = _staff(user)
     if not _reference_ok(reference):
         return False
     now = datetime.now(timezone.utc)
     # A single conditional write ensures concurrent staff cannot both claim a case.
     result = db.get_cases().find_one_and_update(
-        {'reference': reference, 'assigned_to': None, 'status': 'Received', 'archived': {'$ne': True}},
+        {'reference': reference, 'assigned_to': None, 'status': {'$in': ['New', 'Received']}, 'archived': {'$ne': True}},
         {'$set': {'assigned_to': staff_id, 'status': 'Assigned', 'updated_at': now}, '$inc': {'version': 1}},
-        return_document=ReturnDocument.AFTER)
-    return result is not None
+        return_document=ReturnDocument.BEFORE)
+    # Use the atomically returned old state for accurate audit events, including legacy cases.
+    return (result['status'] if include_previous else True) if result is not None else False
 
 
 def get_staff_case(user, reference):
@@ -145,8 +149,9 @@ def get_staff_case(user, reference):
     case['version'] = document.get('version', 0)
     case['allowed_statuses'] = TRANSITIONS.get(document['status'], ())
     case['conversation'] = [{'by': item.get('by', 'Student'), 'when': item['at'].strftime('%d %b %Y, %H:%M UTC'),
-                             'text': item['text']} for item in document.get('student_updates', [])]
-    case['private_notes'] = [{'when': item['at'].strftime('%d %b %Y, %H:%M UTC'), 'text': item['text']}
+                             'text': decrypt_text(item['text'], reference, 'student_updates')} for item in document.get('student_updates', [])]
+    case['private_notes'] = [{'when': item['at'].strftime('%d %b %Y, %H:%M UTC'),
+                              'text': decrypt_text(item['text'], reference, 'staff_notes')}
                              for item in document.get('staff_notes', [])]
     return case
 
@@ -173,7 +178,8 @@ def update_staff_case(user, reference, action, value='', expected_version=None):
         query['status'] = {'$in': [source for source, destinations in TRANSITIONS.items() if value in destinations]}
         update['$set']['status'] = value
     elif action in ('note', 'message') and isinstance(value, str) and value.strip() and len(value) <= 3000:
-        item = {'at': now, 'text': value.strip()}
+        field = 'staff_notes' if action == 'note' else 'student_updates'
+        item = {'at': now, 'text': encrypt_text(value.strip(), reference, field)}
         if action == 'message':
             item['by'] = 'Support team'
         update['$push'] = {'staff_notes' if action == 'note' else 'student_updates': item}

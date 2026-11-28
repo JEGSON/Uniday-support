@@ -14,6 +14,7 @@ from pymongo.errors import PyMongoError
 
 from app import create_app
 import db
+from services.case_crypto import encrypt_text
 
 BATCH = 'fictional-cases-v1'
 DESCRIPTIONS = {
@@ -115,7 +116,15 @@ def insert_cases(collection, records):
     # Fixed _ids make duplicate batches fail even if two seeders race; never replace existing cases.
     if collection.count_documents({'demo_seed_batch': BATCH}, limit=1):
         raise ValueError('This demo batch already exists. Existing cases were not changed.')
-    collection.insert_many(records, ordered=True)
+    encrypted = []
+    for record in records:
+        document = dict(record)
+        for field in ('student_updates', 'staff_notes'):
+            if field in document:
+                document[field] = [dict(item, text=encrypt_text(item['text'], document['reference'], field))
+                                   for item in document[field]]
+        encrypted.append(document)
+    collection.insert_many(encrypted, ordered=True)
 
 
 def main():

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 import pytest
 from scripts.seed_cases import BATCH, DESCRIPTIONS, STATUSES, build_cases, insert_cases
-from services.cases import CATEGORIES, _view
+from services.cases import CATEGORIES
 
 
 def test_demo_cases_match_application_schema_and_are_fictional():
@@ -18,7 +18,6 @@ def test_demo_cases_match_application_schema_and_are_fictional():
         assert case['demo_seed_batch'] == BATCH
         assert len(case['reference']) == 32
         assert case['student_updates'][0]['text'].removeprefix('Fictional demo: ') in DESCRIPTIONS[case['category']]
-        assert 'staff_notes' not in _view(case) and _view(case)['summary'] == 'Fictional demo request.'
         if case['status'] == 'Received':
             assert case['assigned_to'] is None and 'staff_notes' not in case
         else:
@@ -45,6 +44,7 @@ def test_seeded_cases_work_with_real_case_services():
     from pymongo import MongoClient
     from scripts.seed_cases import demo_account_ids
     from services.cases import get_student_cases, staff_queue, get_staff_case
+    from app import create_app
     uri = os.environ.get('TEST_MONGODB_URI')
     if not uri:
         pytest.skip('TEST_MONGODB_URI required for isolated MongoDB test.')
@@ -64,18 +64,21 @@ def test_seeded_cases_work_with_real_case_services():
         assert demo_account_ids(database.users, 'student', use_existing=True) == [student]
         with pytest.raises(ValueError, match='exactly one active staff'):
             demo_account_ids(database.users, 'staff', use_existing=True)
-        insert_cases(database.cases, build_cases(students, officers))
+        with patch('db.init_app'):
+            app = create_app()
         student_user = SimpleNamespace(id=str(student), role='student', is_authenticated=True)
         staff_user = SimpleNamespace(id=str(staff), role='staff', is_authenticated=True)
-        with patch('db.get_cases', return_value=database.cases):
+        with app.app_context(), patch('db.get_cases', return_value=database.cases):
+            insert_cases(database.cases, build_cases(students, officers))
             student_cases = get_student_cases(student_user)
             queue = staff_queue(staff_user)
             assigned = next(case for case in queue if case['claimed'])
             staff_case = get_staff_case(staff_user, assigned['reference'])
+            with pytest.raises(ValueError, match='already exists'):
+                insert_cases(database.cases, build_cases(students, officers))
         assert len(student_cases) == 180 and len(queue) == 180
+        assert student_cases[0]['summary'] == 'Fictional demo request.'
         assert staff_case['private_notes'] and 'Fictional note' not in repr(student_cases)
-        with pytest.raises(ValueError, match='already exists'):
-            insert_cases(database.cases, build_cases(students, officers))
         assert database.cases.count_documents({}) == 180
     finally:
         client.drop_database(name)

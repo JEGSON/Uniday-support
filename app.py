@@ -12,13 +12,13 @@ from flask_login import LoginManager, current_user, login_required, login_user, 
 from dotenv import dotenv_values
 from pymongo.errors import DuplicateKeyError, PyMongoError
 from email_validator import EmailNotValidError, validate_email
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import db
 from services.users import validate_signup
 from services import audit, auth, enrollment, tokens, cases as case_service, stats, audit_viewer, admin_users as user_admin
 from services.passwords import validate_password, hash_password
 from services.decorators import role_required
-import mock_data
 
 
 def create_app():
@@ -26,12 +26,18 @@ def create_app():
     settings = dotenv_values(Path(app.root_path) / '.env', interpolate=False)
     key = os.environ.get('SECRET_KEY') or settings.get('SECRET_KEY')
     production = os.environ.get('APP_ENV', 'development') == 'production'
+    # Enable only behind the configured nginx proxy, which overwrites these headers.
+    if os.environ.get('TRUST_PROXY') == '1':
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
     if production and (not key or len(key) < 32):
         raise RuntimeError('A strong SECRET_KEY is required in production.')
     # Ephemeral key is for local review only. Production must load a persistent,
     # securely managed key and use appropriately configured secure cookies/TLS.
     app.config.update(SECRET_KEY=key or secrets.token_hex(32), MAX_CONTENT_LENGTH=16384,
                       BASE_URL=os.environ.get('BASE_URL') or settings.get('BASE_URL') or 'http://127.0.0.1:5000',
+                      SMTP_HOST=os.environ.get('SMTP_HOST') or settings.get('SMTP_HOST') or '127.0.0.1',
+                      CASE_ACTIVE_KEY_ID=os.environ.get('CASE_ACTIVE_KEY_ID') or settings.get('CASE_ACTIVE_KEY_ID'),
+                      CASE_ENCRYPTION_KEYS=os.environ.get('CASE_ENCRYPTION_KEYS') or settings.get('CASE_ENCRYPTION_KEYS'),
                       SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax',
                       SESSION_COOKIE_SECURE=production, PERMANENT_SESSION_LIFETIME=timedelta(hours=1))
     CSRFProtect(app)
@@ -287,12 +293,13 @@ def create_app():
     @role_required('staff')
     def staff_claim_case(reference):
         try:
-            if not case_service.claim_case(current_user, reference):
+            previous_status = case_service.claim_case(current_user, reference, include_previous=True)
+            if not previous_status:
                 return 'This request is no longer available to claim.', 409
             audit.record('case_claimed', current_user.id, case_reference=reference,
                          old_value='unassigned', new_value=current_user.id)
             audit.record('case_status', current_user.id, case_reference=reference,
-                         old_value='Received', new_value='Assigned')
+                         old_value=previous_status, new_value='Assigned')
             return redirect(url_for('staff_case_detail', reference=reference))
         except (PyMongoError, RuntimeError):
             app.logger.warning('Case claim unavailable.')

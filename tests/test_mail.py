@@ -13,6 +13,14 @@ def test_mail_uses_configured_origin_and_local_smtp():
     assert 'http://localhost:5000/verify-email#token=token_123' in message.get_content()
 
 
+def test_mail_supports_local_https_and_container_smtp():
+    with patch('services.mail.smtplib.SMTP') as smtp:
+        send_verification_email('student@example.edu', 'token_123', 'https://localhost:5443', smtp_host='mailpit')
+    smtp.assert_called_once_with('mailpit', 1025, timeout=5)
+    message = smtp.return_value.__enter__.return_value.send_message.call_args.args[0]
+    assert 'https://localhost:5443/verify-email#token=token_123' in message.get_content()
+
+
 @pytest.mark.parametrize('origin', ['https://attacker.example', 'http://localhost.attacker.example',
                                     'http://localhost:5000/path', 'http://user@localhost:5000'])
 def test_mail_rejects_untrusted_origin(origin):

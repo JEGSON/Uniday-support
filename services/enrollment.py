@@ -68,7 +68,8 @@ def issue_email(user_id):
     collection.update_many({'user_id': user_id, 'used_at': None}, {'$set': {'used_at': now}})
     collection.insert_one(record)
     try:
-        mail.send_verification_email(user['email'], raw, current_app.config['BASE_URL'])
+        mail.send_verification_email(user['email'], raw, current_app.config['BASE_URL'],
+                                     smtp_host=current_app.config['SMTP_HOST'])
         audit.record('verification_email_sent', user_id)
     except (OSError, smtplib.SMTPException, ValueError):
         current_app.logger.warning('Verification email could not be delivered.')

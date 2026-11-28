@@ -57,10 +57,11 @@ def test_signup_verify_replay_and_signin(setup_db):
     app, database = setup_db
     client = app.test_client()
     with patch('services.mail.send_verification_email') as send:
-        assert signup(client).status_code == 200
+        assert signup(client, role='admin').status_code == 200
     token = send.call_args.args[1]
     user = database.users.find_one({'student_id': 'DEMO001'})
     assert user['is_active'] is False and user['password_hash'] is None
+    assert user['role'] == 'student'  # A forged public role cannot grant privileges.
     assert database.student_registry.find_one({'student_id': 'DEMO001'})['claimed'] is True
     assert client.get('/verify-email').status_code == 200
     assert database.users.find_one({'_id': user['_id']})['is_active'] is False
